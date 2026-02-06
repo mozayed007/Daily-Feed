@@ -87,6 +87,9 @@ export interface UserInteraction {
   engagement_score: number;
 }
 
+export type UserPreferencesResponse = UserPreferences;
+export type UserInteractionResponse = UserInteraction;
+
 export interface PersonalizedDigest {
   id: string;
   created_at: string;
@@ -135,6 +138,8 @@ export interface ArticleFilterParams {
   processed?: boolean;
   category?: string;
   source?: string;
+  page?: number;
+  page_size?: number;
   skip?: number;
   limit?: number;
 }
@@ -176,7 +181,7 @@ export interface UpdatePreferencesRequest {
 
 // Feedback
 export interface ArticleFeedbackRequest {
-  article_id: number;
+  articleId: number;
   feedback: 'like' | 'dislike' | 'save' | 'dismiss';
 }
 

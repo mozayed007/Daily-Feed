@@ -159,7 +159,7 @@ export function Preferences() {
           >
             <button
               onClick={() => setActiveSection(activeSection === section.id ? null : section.id)}
-              className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors"
+              className="w-full flex items-center justify-between p-6 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
             >
               <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-xl bg-${section.color}-50 dark:bg-${section.color}-900/30`}>
@@ -183,7 +183,7 @@ export function Preferences() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="border-t border-slate-100"
+                className="border-t border-slate-100 dark:border-slate-700"
               >
                 <div className="p-6">
                   {section.id === 'interests' && (
@@ -192,7 +192,7 @@ export function Preferences() {
                         const value = Math.round((preferences?.topic_interests?.[topic.id] || 0.5) * 100);
                         return (
                           <div key={topic.id} className="flex items-center gap-4">
-                            <span className="w-24 text-sm font-medium text-slate-700">
+                            <span className="w-24 text-sm font-medium text-slate-700 dark:text-slate-300">
                               {topic.label}
                             </span>
                             <div className="flex-1 flex items-center gap-3">
@@ -202,9 +202,9 @@ export function Preferences() {
                                 max="100"
                                 value={value}
                                 onChange={(e) => handleInterestChange(topic.id, parseInt(e.target.value))}
-                                className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                className="flex-1 h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
                               />
-                              <span className="w-12 text-sm font-medium text-slate-600 text-right">
+                              <span className="w-12 text-sm font-medium text-slate-600 dark:text-slate-300 text-right">
                                 {value}%
                               </span>
                             </div>
@@ -224,8 +224,8 @@ export function Preferences() {
                             onClick={() => handleToggleSource(source.id)}
                             className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                               isPreferred
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-slate-200 hover:border-slate-300'
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                                : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
                             }`}
                           >
                             <div
@@ -235,7 +235,7 @@ export function Preferences() {
                             >
                               {source.icon}
                             </div>
-                            <span className="font-medium text-slate-900">{source.name}</span>
+                            <span className="font-medium text-slate-900 dark:text-white">{source.name}</span>
                             {isPreferred && <Check className="w-4 h-4 text-blue-600 ml-auto" />}
                           </button>
                         );
@@ -247,7 +247,7 @@ export function Preferences() {
                     <div className="space-y-6">
                       {/* Summary Length */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-3">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
                           Summary Length
                         </label>
                         <div className="grid grid-cols-3 gap-3">
@@ -257,13 +257,13 @@ export function Preferences() {
                               onClick={() => updatePreferences.mutate({ summary_length: length.id })}
                               className={`p-4 rounded-xl border-2 text-center transition-all ${
                                 preferences?.summary_length === length.id
-                                  ? 'border-blue-500 bg-blue-50'
-                                  : 'border-slate-200 hover:border-slate-300'
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                                  : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
                               }`}
                             >
-                              <p className="font-medium text-slate-900">{length.label}</p>
-                              <p className="text-xs text-slate-500 mt-1">{length.desc}</p>
-                              <p className="text-xs text-slate-400 mt-0.5">{length.time}</p>
+                              <p className="font-medium text-slate-900 dark:text-white">{length.label}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{length.desc}</p>
+                              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{length.time}</p>
                             </button>
                           ))}
                         </div>
@@ -271,7 +271,7 @@ export function Preferences() {
 
                       {/* Freshness */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-3">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
                           Content Freshness
                         </label>
                         <div className="space-y-2">
@@ -281,13 +281,13 @@ export function Preferences() {
                               onClick={() => updatePreferences.mutate({ freshness_preference: option.id })}
                               className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
                                 preferences?.freshness_preference === option.id
-                                  ? 'border-blue-500 bg-blue-50'
-                                  : 'border-slate-200 hover:border-slate-300'
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                                  : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
                               }`}
                             >
                               <div className="text-left">
-                                <p className="font-medium text-slate-900">{option.label}</p>
-                                <p className="text-sm text-slate-500">{option.desc}</p>
+                                <p className="font-medium text-slate-900 dark:text-white">{option.label}</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">{option.desc}</p>
                               </div>
                               {preferences?.freshness_preference === option.id && (
                                 <Check className="w-5 h-5 text-blue-600" />
@@ -299,7 +299,7 @@ export function Preferences() {
 
                       {/* Daily Limit */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-3">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
                           Articles per Digest: {preferences?.daily_article_limit}
                         </label>
                         <input
@@ -310,9 +310,9 @@ export function Preferences() {
                           onChange={(e) =>
                             updatePreferences.mutate({ daily_article_limit: parseInt(e.target.value) })
                           }
-                          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          className="w-full h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
-                        <div className="flex justify-between text-xs text-slate-500 mt-1">
+                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
                           <span>3</span>
                           <span>20</span>
                         </div>
@@ -324,7 +324,7 @@ export function Preferences() {
                     <div className="space-y-6">
                       {/* Blocked Topics */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-3">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
                           Blocked Topics
                         </label>
                         <div className="flex gap-2 mb-3">
@@ -333,7 +333,7 @@ export function Preferences() {
                             value={newBlockedTopic}
                             onChange={(e) => setNewBlockedTopic(e.target.value)}
                             placeholder="Add topic to block..."
-                            className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                            className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 outline-none"
                             onKeyDown={(e) => e.key === 'Enter' && handleAddBlockedTopic()}
                           />
                           <button
@@ -365,10 +365,10 @@ export function Preferences() {
                       </div>
 
                       {/* Auto-adjust */}
-                      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                      <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
                         <div>
-                          <p className="font-medium text-slate-900">Auto-adjust Interests</p>
-                          <p className="text-sm text-slate-500">
+                          <p className="font-medium text-slate-900 dark:text-white">Auto-adjust Interests</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
                             Let AI learn from your reading habits
                           </p>
                         </div>
@@ -394,7 +394,7 @@ export function Preferences() {
                     <div className="space-y-6">
                       {/* Delivery Time */}
                       <div>
-                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-3">
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
                           <Clock className="w-4 h-4" />
                           Daily Delivery Time
                         </label>
@@ -404,19 +404,19 @@ export function Preferences() {
                           onChange={(e) =>
                             updatePreferences.mutate({ delivery_time: e.target.value })
                           }
-                          className="px-4 py-2 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                          className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 outline-none"
                         />
                       </div>
 
                       {/* Timezone */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-3">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
                           Timezone
                         </label>
                         <select
                           value={preferences?.timezone || 'UTC'}
                           onChange={(e) => updatePreferences.mutate({ timezone: e.target.value })}
-                          className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                          className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 outline-none"
                         >
                           <option value="UTC">UTC</option>
                           <option value="America/New_York">Eastern Time</option>
@@ -430,10 +430,10 @@ export function Preferences() {
                       </div>
 
                       {/* Reading Time */}
-                      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                      <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
                         <div>
-                          <p className="font-medium text-slate-900">Show Reading Time</p>
-                          <p className="text-sm text-slate-500">
+                          <p className="font-medium text-slate-900 dark:text-white">Show Reading Time</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
                             Display estimated read duration on articles
                           </p>
                         </div>
