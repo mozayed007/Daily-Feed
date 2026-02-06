@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
         logger.info(
             "scheduler_started",
             job_count=job_count,
-            jobs=[j["name"] for j in scheduler.list_jobs()],
+            jobs=[j.name for j in scheduler.list_jobs()],
         )
     else:
         logger.info("scheduler_disabled")

@@ -105,7 +105,8 @@ class AppConfig:
     # CORS
     cors_origins: List[str] = field(default_factory=lambda: [
         "http://localhost:3000",
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "http://localhost:5174"
     ])
     
     # Sub-configs
@@ -177,6 +178,10 @@ class ConfigManager:
         
         if os.getenv(f"{self.ENV_PREFIX}PORT"):
             config.port = int(os.getenv(f"{self.ENV_PREFIX}PORT"))
+        
+        if os.getenv(f"{self.ENV_PREFIX}CORS_ORIGINS"):
+            origins = os.getenv(f"{self.ENV_PREFIX}CORS_ORIGINS").split(",")
+            config.cors_origins = [o.strip() for o in origins]
         
         # LLM settings
         llm_provider = os.getenv(f"{self.ENV_PREFIX}LLM_PROVIDER")

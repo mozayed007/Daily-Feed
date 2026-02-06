@@ -1,7 +1,7 @@
 """Tests for personalization engine and user models."""
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.core.personalization import (
     PersonalizationEngine, UserModelTrainer, ScoredArticle
@@ -37,7 +37,7 @@ class TestPersonalizationEngine:
     
     @pytest.fixture
     def sample_articles(self):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return [
             ArticleModel(
                 id=1,
@@ -109,7 +109,7 @@ class TestPersonalizationEngine:
     
     def test_preferred_sources_score_higher(self, engine, sample_preferences):
         """Test that articles from preferred sources score higher."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         articles = [
             ArticleModel(
@@ -141,7 +141,7 @@ class TestPersonalizationEngine:
     
     def test_freshness_decay(self, engine, sample_preferences):
         """Test that older articles score lower on freshness."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         articles = [
             ArticleModel(
@@ -174,7 +174,7 @@ class TestPersonalizationEngine:
     
     def test_diversity_boost_rewards_variety(self, engine, sample_preferences):
         """Test that diversity boost rewards variety of topics."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         articles = [
             ArticleModel(
