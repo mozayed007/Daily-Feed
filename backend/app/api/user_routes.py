@@ -576,7 +576,7 @@ async def generate_personalized_digest(db: AsyncSession = Depends(get_db)):
         response_articles.append({
             "id": s.article.id,
             "title": s.article.title,
-            "source": s.article.source_name,
+            "source": s.article.source,
             "category": s.article.category,
             "published_at": s.article.published_at.isoformat() if s.article.published_at else None,
             "score": s.score,
