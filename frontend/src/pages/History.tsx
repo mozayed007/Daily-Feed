@@ -76,27 +76,27 @@ export function History() {
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
                   {item.article?.category && (
-                    <span className="text-xs font-medium px-2 py-0.5 bg-slate-100 rounded-full text-slate-600">
+                    <span className="text-xs font-medium px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded-full text-slate-600 dark:text-slate-300 transition-colors">
                       {item.article.category}
                     </span>
                   )}
-                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1 transition-colors">
                     <Calendar className="w-3 h-3" />
                     {new Date(item.created_at).toLocaleDateString()}
                   </span>
                   {item.saved && (
-                    <span className="text-xs font-medium px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full flex items-center gap-1">
+                    <span className="text-xs font-medium px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full flex items-center gap-1 transition-colors">
                       <Bookmark className="w-3 h-3" />
                       Saved
                     </span>
                   )}
                 </div>
 
-                <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                <h3 className="font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   {item.article?.title || 'Unknown Article'}
                 </h3>
 
-                <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
+                <div className="flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400 transition-colors">
                   <span>{item.article?.source}</span>
                   {item.read_duration_seconds > 0 && (
                     <span className="flex items-center gap-1">
@@ -104,12 +104,12 @@ export function History() {
                       {Math.round(item.read_duration_seconds / 60)}m read
                     </span>
                   )}
-                  {item.rating === 1 && <span className="text-emerald-600">Liked</span>}
-                  {item.rating === -1 && <span className="text-rose-600">Disliked</span>}
+                  {item.rating === 1 && <span className="text-emerald-600 dark:text-emerald-400">Liked</span>}
+                  {item.rating === -1 && <span className="text-rose-600 dark:text-rose-400">Disliked</span>}
                 </div>
               </div>
 
-              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-600 transition-colors" />
+              <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
             </div>
           </motion.div>
         ))}

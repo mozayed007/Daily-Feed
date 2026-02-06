@@ -78,7 +78,7 @@ export function Onboarding() {
       name: formData.name,
       interests: formData.interests,
       preferred_sources: formData.sources,
-      summary_length: formData.summaryLength,
+      summary_length: formData.summaryLength as any,
       delivery_time: formData.deliveryTime,
       daily_limit: formData.dailyLimit,
     });
@@ -95,44 +95,53 @@ export function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4 transition-colors">
-      <div className="w-full max-w-2xl">
+    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center p-4 transition-colors">
+      {/* Dynamic Background Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/20 rounded-full blur-[120px] animate-pulse delay-700" />
+      
+      <div className="w-full max-w-2xl relative z-10">
         {/* Progress Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <Newspaper className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 premium-gradient rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/20 border border-white/20">
+                <Newspaper className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white transition-colors">Daily Feed</h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 transition-colors">Personalized News</p>
+                <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Daily Feed</h1>
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Intelligence Layer</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {steps.map((_, i) => (
                 <div
                   key={i}
-                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                    i === step ? 'w-8 bg-blue-600' : i < step ? 'bg-blue-600' : 'bg-slate-300'
+                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                    i === step ? 'w-10 bg-primary' : i < step ? 'w-2 bg-primary/50' : 'w-2 bg-muted'
                   }`}
                 />
               ))}
             </div>
           </div>
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white transition-colors">{steps[step].title}</h2>
-            <p className="text-slate-500 dark:text-slate-400 transition-colors">{steps[step].description}</p>
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center space-y-2"
+          >
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">{steps[step].title}</h2>
+            <p className="text-muted-foreground">{steps[step].description}</p>
+          </motion.div>
         </div>
 
         {/* Card */}
         <motion.div
           key={step}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 overflow-hidden transition-colors"
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: -20 }}
+          transition={{ type: "spring", duration: 0.5 }}
+          className="glass-card rounded-[2.5rem] overflow-hidden border-white/10"
         >
           <div className="p-8">
             <AnimatePresence mode="wait">
@@ -215,8 +224,8 @@ export function Onboarding() {
                           }}
                           className={`relative p-4 rounded-xl border-2 transition-all ${
                             selected
-                              ? `border-transparent bg-gradient-to-br ${topic.color} text-white shadow-lg`
-                              : 'border-slate-200 hover:border-slate-300 bg-white'
+                              ? `border-transparent bg-gradient-to-br ${topic.color} text-white shadow-lg shadow-${topic.id.toLowerCase()}-500/20`
+                              : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100'
                           }`}
                         >
                           <span className="text-2xl mb-2 block">{topic.icon}</span>
@@ -225,7 +234,7 @@ export function Onboarding() {
                             <motion.div
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
-                              className="absolute top-2 right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center"
+                              className="absolute top-2 right-2 w-5 h-5 bg-white dark:bg-slate-200 rounded-full flex items-center justify-center"
                             >
                               <Check className="w-3 h-3 text-slate-900" />
                             </motion.div>
@@ -234,9 +243,9 @@ export function Onboarding() {
                       );
                     })}
                   </div>
-                  <p className="text-center text-sm text-slate-500">
-                    Selected: {formData.interests.length} topics
-                  </p>
+                  <p className="text-center text-sm text-slate-500 dark:text-slate-400 transition-colors">
+                     Selected: {formData.interests.length} topics
+                   </p>
                 </motion.div>
               )}
 
@@ -248,7 +257,7 @@ export function Onboarding() {
                   exit={{ opacity: 0 }}
                   className="space-y-3"
                 >
-                  <p className="text-sm text-slate-500 text-center mb-4">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-4 transition-colors">
                     Choose your preferred news sources
                   </p>
                   {SOURCES.map((source) => {
@@ -268,22 +277,22 @@ export function Onboarding() {
                         }}
                         className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
                           selected
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            selected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                            selected ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                           }`}>
                             <Newspaper className="w-5 h-5" />
                           </div>
                           <div className="text-left">
-                            <p className="font-medium text-slate-900">{source.name}</p>
-                            <p className="text-xs text-slate-500">{source.category}</p>
+                            <p className="font-medium text-slate-900 dark:text-white transition-colors">{source.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 transition-colors">{source.category}</p>
                           </div>
                         </div>
-                        {selected && <Check className="w-5 h-5 text-blue-600" />}
+                        {selected && <Check className="w-5 h-5 text-blue-600 dark:text-blue-400" />}
                       </motion.button>
                     );
                   })}
@@ -300,7 +309,7 @@ export function Onboarding() {
                 >
                   {/* Summary Length */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-3">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 transition-colors">
                       Summary Length
                     </label>
                     <div className="grid grid-cols-3 gap-3">
@@ -310,13 +319,13 @@ export function Onboarding() {
                           onClick={() => setFormData({ ...formData, summaryLength: length.id })}
                           className={`p-4 rounded-xl border-2 text-center transition-all ${
                             formData.summaryLength === length.id
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-slate-200 hover:border-slate-300'
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                              : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
                           }`}
                         >
-                          <p className="font-medium text-slate-900">{length.label}</p>
-                          <p className="text-xs text-slate-500 mt-1">{length.desc}</p>
-                          <p className="text-xs text-slate-400">{length.time}</p>
+                          <p className="font-medium text-slate-900 dark:text-white transition-colors">{length.label}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 transition-colors">{length.desc}</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 transition-colors">{length.time}</p>
                         </button>
                       ))}
                     </div>
@@ -324,7 +333,7 @@ export function Onboarding() {
 
                   {/* Delivery Time */}
                   <div>
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-3">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 transition-colors">
                       <Clock className="w-4 h-4" />
                       Daily Delivery Time
                     </label>
@@ -332,13 +341,13 @@ export function Onboarding() {
                       type="time"
                       value={formData.deliveryTime}
                       onChange={(e) => setFormData({ ...formData, deliveryTime: e.target.value })}
-                      className="px-4 py-2 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 outline-none transition-all"
                     />
                   </div>
 
                   {/* Daily Limit */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-3">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 transition-colors">
                       Articles per Digest: {formData.dailyLimit}
                     </label>
                     <input
@@ -347,9 +356,9 @@ export function Onboarding() {
                       max="20"
                       value={formData.dailyLimit}
                       onChange={(e) => setFormData({ ...formData, dailyLimit: parseInt(e.target.value) })}
-                      className="w-full"
+                      className="w-full accent-blue-600"
                     />
-                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1 transition-colors">
                       <span>3</span>
                       <span>20</span>
                     </div>
@@ -360,14 +369,14 @@ export function Onboarding() {
           </div>
 
           {/* Footer */}
-          <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+          <div className="px-8 py-6 bg-secondary/30 backdrop-blur-md border-t border-border/50 flex items-center justify-between transition-colors">
             <button
               onClick={handleBack}
               disabled={step === 0}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all ${
                 step === 0
-                  ? 'text-slate-400 cursor-not-allowed'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  ? 'text-muted-foreground/30 cursor-not-allowed'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
               }`}
             >
               <ChevronLeft className="w-4 h-4" />
@@ -377,24 +386,24 @@ export function Onboarding() {
             <button
               onClick={handleNext}
               disabled={!canProceed()}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all ${
+              className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-bold transition-all ${
                 canProceed()
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/25'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  ? 'premium-gradient text-white shadow-xl shadow-primary/20 hover:scale-105 active:scale-95'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed'
               }`}
             >
               {step === steps.length - 1 ? (
                 onboarding.isPending ? (
-                  'Setting up...'
+                  'Configuring...'
                 ) : (
                   <>
-                    Get Started
+                    Initialize Engine
                     <Sparkles className="w-4 h-4" />
                   </>
                 )
               ) : (
                 <>
-                  Continue
+                  Proceed
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

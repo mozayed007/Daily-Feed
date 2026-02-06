@@ -23,9 +23,15 @@ export function Layout({ children }: LayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 transition-colors">
+    <div className="min-h-screen bg-background relative selection:bg-primary/30 selection:text-primary transition-colors">
+      {/* Background patterns */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] premium-gradient rounded-full blur-[150px] opacity-[0.08]" />
+        <div className="absolute bottom-[20%] left-[10%] w-[40%] h-[40%] bg-primary rounded-full blur-[180px] opacity-[0.05]" />
+      </div>
+
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 transition-colors">
+      <header className="sticky top-0 z-50 glass border-b border-border/40 transition-colors">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}

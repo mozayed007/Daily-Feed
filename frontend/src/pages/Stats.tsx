@@ -89,28 +89,44 @@ export function Stats() {
       label: "Articles Read",
       value: stats?.total_articles_read || 0,
       change: "+12%",
-      color: "blue",
+      color: "blue" as const,
+      styles: {
+        bg: "bg-blue-50 dark:bg-blue-900/30",
+        icon: "text-blue-600 dark:text-blue-400",
+      },
     },
     {
       icon: Bookmark,
       label: "Saved Articles",
       value: stats?.total_articles_saved || 0,
       change: "+8%",
-      color: "amber",
+      color: "amber" as const,
+      styles: {
+        bg: "bg-amber-50 dark:bg-amber-900/30",
+        icon: "text-amber-600 dark:text-amber-400",
+      },
     },
     {
       icon: Clock,
       label: "Avg Read Time",
       value: `${Math.round((stats?.average_reading_time || 0) / 60)}m`,
       change: "+5%",
-      color: "emerald",
+      color: "emerald" as const,
+      styles: {
+        bg: "bg-emerald-50 dark:bg-emerald-900/30",
+        icon: "text-emerald-600 dark:text-emerald-400",
+      },
     },
     {
       icon: Eye,
       label: "Open Rate",
       value: `${stats?.digest_open_rate || 0}%`,
       change: "+15%",
-      color: "purple",
+      color: "purple" as const,
+      styles: {
+        bg: "bg-purple-50 dark:bg-purple-900/30",
+        icon: "text-purple-600 dark:text-purple-400",
+      },
     },
   ];
 
@@ -130,7 +146,7 @@ export function Stats() {
           <select
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value as any)}
-            className="appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2 pr-10 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+            className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 pr-10 text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-colors"
           >
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
@@ -152,10 +168,10 @@ export function Stats() {
           >
             <div className="flex items-start justify-between">
               <div
-                className={`p-2.5 rounded-xl bg-${card.color}-50 dark:bg-${card.color}-900/30`}
+                className={`p-2.5 rounded-xl ${card.styles.bg}`}
               >
                 <card.icon
-                  className={`w-5 h-5 text-${card.color}-600 dark:text-${card.color}-400`}
+                  className={`w-5 h-5 ${card.styles.icon}`}
                 />
               </div>
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
@@ -199,26 +215,41 @@ export function Stats() {
               <BarChart data={ACTIVITY_DATA}>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#e2e8f0"
+                  stroke="currentColor"
+                  className="text-slate-200 dark:text-slate-700"
                   vertical={false}
                 />
                 <XAxis
                   dataKey="day"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "#64748b", fontSize: 12 }}
+                  tick={{ fill: "currentColor", fontSize: 12 }}
+                  className="text-slate-400 dark:text-slate-500"
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "#64748b", fontSize: 12 }}
+                  tick={{ fill: "currentColor", fontSize: 12 }}
+                  className="text-slate-400 dark:text-slate-500"
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#fff",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                    backgroundColor: "transparent",
+                    border: "none",
+                    padding: 0,
+                  }}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">{label}</p>
+                          <p className="text-sm text-blue-600 dark:text-blue-400">
+                            {payload[0].value} articles
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
                 <Bar dataKey="articles" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -265,9 +296,23 @@ export function Stats() {
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--tooltip-bg, #fff)",
-                    border: "1px solid var(--tooltip-border, #e2e8f0)",
-                    borderRadius: "8px",
+                    backgroundColor: "transparent",
+                    border: "none",
+                    padding: 0,
+                  }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">{data.name}</p>
+                          <p className="text-sm font-medium" style={{ color: data.color }}>
+                            {data.value}%
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
               </PieChart>
@@ -317,25 +362,48 @@ export function Stats() {
               <AreaChart data={ENGAGEMENT_DATA}>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#e2e8f0"
+                  stroke="currentColor"
+                  className="text-slate-200 dark:text-slate-700"
                   vertical={false}
                 />
                 <XAxis
                   dataKey="week"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "#64748b", fontSize: 12 }}
+                  tick={{ fill: "currentColor", fontSize: 12 }}
+                  className="text-slate-400 dark:text-slate-500"
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "#64748b", fontSize: 12 }}
+                  tick={{ fill: "currentColor", fontSize: 12 }}
+                  className="text-slate-400 dark:text-slate-500"
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "var(--tooltip-bg, #fff)",
-                    border: "1px solid var(--tooltip-border, #e2e8f0)",
-                    borderRadius: "8px",
+                    backgroundColor: "transparent",
+                    border: "none",
+                    padding: 0,
+                  }}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white mb-2">{label}</p>
+                          <div className="space-y-1">
+                            <p className="text-xs text-violet-500 flex items-center justify-between gap-4">
+                              <span>Opens:</span>
+                              <span className="font-bold">{payload[0].value}</span>
+                            </p>
+                            <p className="text-xs text-emerald-500 flex items-center justify-between gap-4">
+                              <span>Clicks:</span>
+                              <span className="font-bold">{payload[1].value}</span>
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
                 <Area
@@ -429,21 +497,21 @@ export function Stats() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8 }}
-        className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white"
+        className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white shadow-lg"
       >
         <div className="flex items-center gap-3 mb-3">
-          <div className="p-2 bg-white/20 rounded-lg">
+          <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
             <TrendingUp className="w-5 h-5 text-white" />
           </div>
           <h3 className="font-semibold text-lg">Weekly Insight</h3>
         </div>
-        <p className="text-blue-100">
+        <p className="text-blue-50">
           You're most active on{" "}
-          <span className="font-semibold text-white">Saturday</span> with an
+          <span className="font-bold text-white">Saturday</span> with an
           average of{" "}
-          <span className="font-semibold text-white">15 articles</span> read.
+          <span className="font-bold text-white">15 articles</span> read.
           Your engagement has increased by{" "}
-          <span className="font-semibold text-white">23%</span> this week!
+          <span className="font-bold text-white">23%</span> this week!
         </p>
       </motion.div>
     </div>

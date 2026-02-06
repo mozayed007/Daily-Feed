@@ -99,35 +99,55 @@ export function Preferences() {
       icon: Zap,
       title: 'Topic Interests',
       description: 'Adjust how much you want to see from each topic',
-      color: 'violet',
+      color: 'violet' as const,
+      styles: {
+        bg: 'bg-violet-50 dark:bg-violet-900/30',
+        icon: 'text-violet-600 dark:text-violet-400',
+      },
     },
     {
       id: 'sources',
       icon: Sliders,
       title: 'News Sources',
       description: 'Prioritize your preferred publishers',
-      color: 'blue',
+      color: 'blue' as const,
+      styles: {
+        bg: 'bg-blue-50 dark:bg-blue-900/30',
+        icon: 'text-blue-600 dark:text-blue-400',
+      },
     },
     {
       id: 'content',
       icon: Type,
       title: 'Content Preferences',
       description: 'Summary length and delivery settings',
-      color: 'emerald',
+      color: 'emerald' as const,
+      styles: {
+        bg: 'bg-emerald-50 dark:bg-emerald-900/30',
+        icon: 'text-emerald-600 dark:text-emerald-400',
+      },
     },
     {
       id: 'filters',
       icon: Filter,
       title: 'Content Filters',
       description: 'Block topics and sources you don\'t want to see',
-      color: 'rose',
+      color: 'rose' as const,
+      styles: {
+        bg: 'bg-rose-50 dark:bg-rose-900/30',
+        icon: 'text-rose-600 dark:text-rose-400',
+      },
     },
     {
       id: 'notifications',
       icon: Bell,
       title: 'Notifications',
       description: 'Delivery time and frequency',
-      color: 'amber',
+      color: 'amber' as const,
+      styles: {
+        bg: 'bg-amber-50 dark:bg-amber-900/30',
+        icon: 'text-amber-600 dark:text-amber-400',
+      },
     },
   ];
 
@@ -162,8 +182,8 @@ export function Preferences() {
               className="w-full flex items-center justify-between p-6 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
             >
               <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl bg-${section.color}-50 dark:bg-${section.color}-900/30`}>
-                  <section.icon className={`w-5 h-5 text-${section.color}-600 dark:text-${section.color}-400`} />
+                <div className={`p-3 rounded-xl ${section.styles.bg}`}>
+                  <section.icon className={`w-5 h-5 ${section.styles.icon}`} />
                 </div>
                 <div className="text-left">
                   <h3 className="font-semibold text-slate-900 dark:text-white transition-colors">{section.title}</h3>
@@ -254,7 +274,7 @@ export function Preferences() {
                           {SUMMARY_LENGTHS.map((length) => (
                             <button
                               key={length.id}
-                              onClick={() => updatePreferences.mutate({ summary_length: length.id })}
+                              onClick={() => updatePreferences.mutate({ summary_length: length.id as any })}
                               className={`p-4 rounded-xl border-2 text-center transition-all ${
                                 preferences?.summary_length === length.id
                                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
@@ -278,7 +298,7 @@ export function Preferences() {
                           {FRESHNESS_OPTIONS.map((option) => (
                             <button
                               key={option.id}
-                              onClick={() => updatePreferences.mutate({ freshness_preference: option.id })}
+                              onClick={() => updatePreferences.mutate({ freshness_preference: option.id as any })}
                               className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
                                 preferences?.freshness_preference === option.id
                                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
@@ -468,20 +488,20 @@ export function Preferences() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="bg-rose-50 rounded-2xl p-6 border border-rose-100"
+        className="bg-rose-50 dark:bg-rose-900/10 rounded-2xl p-6 border border-rose-100 dark:border-rose-900/30 transition-colors"
       >
         <div className="flex items-start gap-4">
-          <div className="p-3 bg-rose-100 rounded-xl">
-            <Trash2 className="w-5 h-5 text-rose-600" />
+          <div className="p-3 bg-rose-100 dark:bg-rose-900/30 rounded-xl">
+            <Trash2 className="w-5 h-5 text-rose-600 dark:text-rose-400" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-rose-900">Reset Preferences</h3>
-            <p className="text-sm text-rose-700 mt-1">
+            <h3 className="font-semibold text-rose-900 dark:text-rose-100 transition-colors">Reset Preferences</h3>
+            <p className="text-sm text-rose-700 dark:text-rose-300 mt-1 transition-colors">
               This will reset all your preferences to default values. Your reading history will be preserved.
             </p>
           </div>
-          <button className="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors text-sm font-medium">
-            Reset
+          <button className="px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors text-sm font-medium shadow-sm">
+            Reset All
           </button>
         </div>
       </motion.div>

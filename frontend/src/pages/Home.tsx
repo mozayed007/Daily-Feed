@@ -37,66 +37,90 @@ export function Home() {
     <div className="space-y-8">
       {/* Welcome Section */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-8 text-white relative overflow-hidden"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="premium-gradient rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-primary/20"
       >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="absolute top-0 right-0 w-80 h-80 bg-white/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl" />
         
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-5 h-5 text-amber-300" />
-            <span className="text-blue-100 font-medium">Your Daily Briefing</span>
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="space-y-4 text-center md:text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/20 text-xs font-bold uppercase tracking-widest">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              Intelligence Engine Active
+            </div>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
+              Curated for <span className="text-amber-200">Growth.</span>
+            </h1>
+            <p className="text-primary-foreground/90 max-w-md text-lg font-medium leading-relaxed">
+              You&apos;ve processed {stats?.total_articles_read || 0} signals this week. 
+              Ready for your tactical session?
+            </p>
           </div>
-          <h1 className="text-3xl font-bold mb-2">
-            Welcome back!
-          </h1>
-          <p className="text-blue-100 max-w-lg">
-            You&apos;ve read {stats?.total_articles_read || 0} articles this week. 
-            Ready for today&apos;s personalized digest?
-          </p>
 
           <button
             onClick={handleGenerateDigest}
             disabled={generateDigest.isPending}
-            className="mt-6 inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold hover:bg-blue-50 transition-colors shadow-lg"
+            className="flex-shrink-0 group relative overflow-hidden bg-white text-primary px-10 py-5 rounded-[2rem] font-bold text-lg hover:bg-slate-50 transition-all shadow-2xl hover:scale-105 active:scale-95"
           >
-            {generateDigest.isPending ? (
-              <>
-                <RefreshCw className="w-5 h-5 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                Generate Today&apos;s Digest
-              </>
-            )}
+            <div className="relative z-10 flex items-center gap-3">
+              {generateDigest.isPending ? (
+                <>
+                  <RefreshCw className="w-6 h-6 animate-spin" />
+                  Generating Intelligence...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-6 h-6" />
+                  Generate Tactical Brief
+                </>
+              )}
+            </div>
           </button>
         </div>
       </motion.div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         {[
-          { icon: BookOpen, label: 'Read', value: stats?.total_articles_read || 0, color: 'blue' },
-          { icon: Bookmark, label: 'Saved', value: stats?.total_articles_saved || 0, color: 'amber' },
-          { icon: Clock, label: 'Avg Time', value: `${Math.round((stats?.average_reading_time || 0) / 60)}m`, color: 'emerald' },
-          { icon: TrendingUp, label: 'Open Rate', value: `${stats?.digest_open_rate || 0}%`, color: 'purple' },
+          {
+            icon: BookOpen,
+            label: 'Processed',
+            value: stats?.total_articles_read || 0,
+            styles: { bg: 'bg-primary/10 text-primary' },
+          },
+          {
+            icon: Bookmark,
+            label: 'Tactical',
+            value: stats?.total_articles_saved || 0,
+            styles: { bg: 'bg-amber-500/10 text-amber-500' },
+          },
+          {
+            icon: Clock,
+            label: 'Velocity',
+            value: `${Math.round((stats?.average_reading_time || 0) / 60)}m`,
+            styles: { bg: 'bg-emerald-500/10 text-emerald-500' },
+          },
+          {
+            icon: TrendingUp,
+            label: 'Precision',
+            value: `${stats?.digest_open_rate || 0}%`,
+            styles: { bg: 'bg-violet-500/10 text-violet-500' },
+          },
         ].map((stat, index) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + index * 0.05 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
+            className="glass-card rounded-3xl p-6 border-border/50"
           >
-            <div className={`w-10 h-10 rounded-xl bg-${stat.color}-50 dark:bg-${stat.color}-900/30 flex items-center justify-center mb-3`}>
-              <stat.icon className={`w-5 h-5 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${stat.styles.bg}`}>
+              <stat.icon className="w-6 h-6" />
             </div>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white transition-colors">{stat.value}</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400 transition-colors">{stat.label}</p>
+            <p className="text-3xl font-black tracking-tight text-foreground">{stat.value}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">{stat.label}</p>
           </motion.div>
         ))}
       </div>
@@ -110,25 +134,25 @@ export function Home() {
             exit={{ opacity: 0, height: 0 }}
             className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-3xl p-1"
           >
-            <div className="bg-white/80 backdrop-blur rounded-[22px] p-6">
+            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-[22px] p-6 transition-colors">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-violet-600" />
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 transition-colors">
+                    <Sparkles className="w-5 h-5 text-violet-600 dark:text-violet-400" />
                     Your Personalized Digest
                   </h2>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 transition-colors">
                     Match Score: {' '}
-                    <span className="font-semibold text-violet-600">
+                    <span className="font-semibold text-violet-600 dark:text-violet-400">
                       {(generateDigest.data.personalization_score * 100).toFixed(0)}%
                     </span>
                   </p>
                 </div>
                 <button
                   onClick={() => setShowDigest(false)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5 text-slate-400" />
+                  <X className="w-5 h-5 text-slate-400 dark:text-slate-500" />
                 </button>
               </div>
 
@@ -139,31 +163,31 @@ export function Home() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow"
+                    className="flex items-center gap-4 p-4 bg-white dark:bg-slate-800/50 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all"
                   >
-                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-violet-100 to-purple-100 rounded-xl flex items-center justify-center">
-                      <span className="text-lg font-bold text-violet-600">#{index + 1}</span>
+                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/50 dark:to-purple-900/50 rounded-xl flex items-center justify-center">
+                      <span className="text-lg font-bold text-violet-600 dark:text-violet-400">#{index + 1}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900 truncate">{article.title}</h3>
-                      <div className="flex items-center gap-3 text-sm text-slate-500">
+                      <h3 className="font-semibold text-slate-900 dark:text-white truncate transition-colors">{article.title}</h3>
+                      <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
                         <span>{article.source}</span>
                         <span>•</span>
-                        <span className="text-violet-600 font-medium">Score: {(article.score * 100).toFixed(0)}%</span>
+                        <span className="text-violet-600 dark:text-violet-400 font-medium">Score: {(article.score * 100).toFixed(0)}%</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleFeedback(article.id, 'like')}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                       >
-                        <ThumbsUp className="w-4 h-4 text-slate-400" />
+                        <ThumbsUp className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                       </button>
                       <button
                         onClick={() => handleFeedback(article.id, 'save')}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                       >
-                        <Bookmark className="w-4 h-4 text-slate-400" />
+                        <Bookmark className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                       </button>
                     </div>
                   </motion.div>
