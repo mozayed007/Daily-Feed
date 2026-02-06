@@ -6,7 +6,7 @@ import logging
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Request
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,7 @@ from app.core.config_manager import get_config_manager, get_config
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+LOCAL_ONLY_CLIENTS = {"127.0.0.1", "::1", "localhost", "testclient"}
 
 # Include user routes
 from app.api.user_routes import router as user_router
@@ -32,6 +33,13 @@ router.include_router(user_router, prefix="/users")
 async def get_db():
     async with Database.get_session() as session:
         yield session
+
+
+def require_local_request(request: Request) -> None:
+    """Restrict sensitive endpoints to local clients."""
+    host = request.client.host if request.client else ""
+    if host not in LOCAL_ONLY_CLIENTS:
+        raise HTTPException(status_code=403, detail="This endpoint is restricted to local clients")
 
 
 # ========== Health & Status ==========
@@ -116,7 +124,11 @@ async def get_sources(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/sources", response_model=SourceResponse)
-async def create_source(source: SourceCreate, db: AsyncSession = Depends(get_db)):
+async def create_source(
+    source: SourceCreate,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_local_request),
+):
     """Create a new RSS source"""
     
     # Check if URL already exists
@@ -143,7 +155,8 @@ async def create_source(source: SourceCreate, db: AsyncSession = Depends(get_db)
 async def update_source(
     source_id: int,
     source_update: SourceCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_local_request),
 ):
     """Update an RSS source"""
     result = await db.execute(
@@ -174,7 +187,11 @@ async def update_source(
 
 
 @router.delete("/sources/{source_id}")
-async def delete_source(source_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_source(
+    source_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_local_request),
+):
     """Delete an RSS source"""
     result = await db.execute(
         select(SourceModel).where(SourceModel.id == source_id)
@@ -196,7 +213,8 @@ async def delete_source(source_id: int, db: AsyncSession = Depends(get_db)):
 async def run_pipeline(
     task_type: str,
     background_tasks: BackgroundTasks,
-    params: Optional[Dict[str, Any]] = None
+    params: Optional[Dict[str, Any]] = None,
+    _: None = Depends(require_local_request),
 ):
     """
     Run a pipeline task using the agent loop.
@@ -233,7 +251,11 @@ async def list_tools():
 
 
 @router.post("/tools/{tool_name}")
-async def execute_tool(tool_name: str, params: Dict[str, Any]):
+async def execute_tool(
+    tool_name: str,
+    params: Dict[str, Any],
+    _: None = Depends(require_local_request),
+):
     """Execute a specific tool directly"""
     agent = get_agent_loop()
     
@@ -273,7 +295,10 @@ async def list_scheduled_jobs():
 
 
 @router.post("/scheduler/jobs")
-async def add_scheduled_job(job_config: Dict[str, Any]):
+async def add_scheduled_job(
+    job_config: Dict[str, Any],
+    _: None = Depends(require_local_request),
+):
     """Add a new scheduled job"""
     scheduler = get_scheduler()
     
@@ -296,7 +321,7 @@ async def add_scheduled_job(job_config: Dict[str, Any]):
 
 
 @router.post("/scheduler/start")
-async def start_scheduler():
+async def start_scheduler(_: None = Depends(require_local_request)):
     """Start the scheduler"""
     scheduler = get_scheduler()
     await scheduler.start()
@@ -304,7 +329,7 @@ async def start_scheduler():
 
 
 @router.post("/scheduler/stop")
-async def stop_scheduler():
+async def stop_scheduler(_: None = Depends(require_local_request)):
     """Stop the scheduler"""
     scheduler = get_scheduler()
     await scheduler.stop()
@@ -312,7 +337,7 @@ async def stop_scheduler():
 
 
 @router.delete("/scheduler/jobs/{job_id}")
-async def delete_scheduled_job(job_id: str):
+async def delete_scheduled_job(job_id: str, _: None = Depends(require_local_request)):
     """Remove a scheduled job"""
     scheduler = get_scheduler()
     removed = scheduler.remove_job(job_id)
@@ -340,7 +365,7 @@ async def get_memory_interests():
 
 
 @router.post("/memory/remember/{article_id}")
-async def remember_article(article_id: int):
+async def remember_article(article_id: int, _: None = Depends(require_local_request)):
     """Store an article in memory"""
     memory = get_memory_store()
     
@@ -371,7 +396,7 @@ async def remember_article(article_id: int):
 
 
 @router.post("/memory/search")
-async def search_memory(query: Dict[str, Any]):
+async def search_memory(query: Dict[str, Any], _: None = Depends(require_local_request)):
     """Search memory for similar content"""
     memory = get_memory_store()
     
@@ -392,7 +417,8 @@ async def search_memory(query: Dict[str, Any]):
 async def summarize_article(
     article_id: int,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_local_request),
 ):
     """Trigger summarization for a single article"""
     result = await db.execute(
@@ -551,7 +577,7 @@ async def get_configuration():
 
 
 @router.post("/config/init")
-async def init_configuration():
+async def init_configuration(_: None = Depends(require_local_request)):
     """Initialize default configuration file"""
     manager = get_config_manager()
     manager.create_default_config()

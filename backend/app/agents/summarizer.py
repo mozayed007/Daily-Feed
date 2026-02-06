@@ -1,34 +1,70 @@
-"""Summarizer Agent - Summarizes articles using LLM"""
+"""Summarizer Agent - Summarizes articles using Pydantic AI"""
 
-import json
 import logging
-import re
-from typing import List, Optional
+from typing import List, Optional, Literal
 from dataclasses import dataclass
 
-from app.core.llm_client import BaseLLMClient, LLMClientFactory
+from pydantic import BaseModel, Field
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.models import KnownModelName
+
 from app.database import ArticleModel
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
+
+
+class SummaryResult(BaseModel):
+    """Structured summary result"""
+    text: str = Field(description="The actual summary text")
+    key_points: List[str] = Field(description="List of 3-5 key points")
+    category: Literal[
+        "Technology", "Business", "Science", "Politics", 
+        "Health", "Entertainment", "Sports", "AI/ML", 
+        "Finance", "General"
+    ] = Field(description="The primary category of the article")
+    sentiment: Literal["Positive", "Negative", "Neutral"] = Field(description="The overall sentiment")
+    reading_time: int = Field(description="Estimated reading time in minutes")
 
 
 @dataclass
-class SummaryResult:
-    """Summary result"""
-    text: str
-    key_points: List[str]
-    category: str
-    sentiment: str
-    reading_time: int
-    success: bool = True
-    error: Optional[str] = None
+class SummarizerDependencies:
+    article: ArticleModel
+    style: str
+
+
+# Define the agent
+# We use a dynamic model based on settings, or default to a reasonable one
+def get_model_name() -> str:
+    provider = settings.LLM_PROVIDER
+    if provider == "ollama":
+        return f"ollama:{settings.OLLAMA_MODEL}"
+    elif provider == "openai":
+        return settings.OPENAI_MODEL
+    elif provider == "anthropic":
+        return settings.ANTHROPIC_MODEL
+    elif provider == "gemini":
+        return "google-gla:gemini-3-flash-preview"
+    return "gpt-3.5-turbo"
+
+agent = Agent(
+    model=get_model_name(),
+    result_type=SummaryResult,
+    system_prompt=(
+        "You are a professional news summarizer. "
+        "Create a clear, accurate summary of the provided article. "
+        "Focus on key facts, maintain neutrality, and be accurate."
+    ),
+)
 
 
 class SummarizerAgent:
-    """Agent responsible for summarizing articles"""
+    """Agent responsible for summarizing articles using Pydantic AI"""
     
-    def __init__(self, llm_client: BaseLLMClient = None):
-        self.llm = llm_client or LLMClientFactory.create()
+    def __init__(self):
+        # We can initialize different agents here if needed
+        pass
     
     async def summarize_article(
         self, 
@@ -37,29 +73,50 @@ class SummarizerAgent:
     ) -> SummaryResult:
         """Summarize a single article"""
         
+        style_instructions = {
+            'short': 'Provide a 1-2 sentence summary.',
+            'concise': 'Provide a 2-3 sentence summary.',
+            'medium': 'Provide a 3-4 sentence summary.',
+            'long': 'Provide a paragraph summary (5-6 sentences).'
+        }
+        
+        instruction = style_instructions.get(style, style_instructions['concise'])
+        
+        prompt = f"""
+        ARTICLE TITLE: {article.title}
+        
+        ARTICLE CONTENT:
+        {article.content[:4000]}
+        
+        INSTRUCTIONS:
+        {instruction}
+        """
+        
         try:
-            prompt = self._build_prompt(article, style)
+            # Run the agent
+            # We might need to set API keys in env vars for pydantic-ai to pick them up
+            # (which we did in the LiteLLM client, but here we are using pydantic-ai directly)
+            # Pydantic AI uses similar env vars (OPENAI_API_KEY, etc.) or allows passing client.
             
-            response = await self.llm.generate(
-                prompt=prompt,
-                temperature=0.5,
-                max_tokens=800
-            )
+            # Ensure env vars are set
+            import os
+            if settings.Gemini_API_KEY and "GEMINI_API_KEY" not in os.environ:
+                os.environ["GEMINI_API_KEY"] = settings.Gemini_API_KEY
             
-            result = self._parse_response(response.text)
+            result = await agent.run(prompt)
+            
             logger.info(f"Summarized: {article.title[:50]}...")
-            return result
+            return result.data
             
         except Exception as e:
             logger.error(f"Error summarizing article {article.id}: {e}")
+            # Fallback
             return SummaryResult(
                 text=article.content[:300] + "..." if len(article.content) > 300 else article.content,
                 key_points=[],
-                category=article.category or "General",
+                category="General",
                 sentiment="Neutral",
-                reading_time=self._estimate_reading_time(article.content),
-                success=False,
-                error=str(e)
+                reading_time=max(1, len(article.content.split()) // 200)
             )
     
     async def summarize_batch(
@@ -73,97 +130,3 @@ class SummarizerAgent:
             result = await self.summarize_article(article, style)
             results.append(result)
         return results
-    
-    def _build_prompt(self, article: ArticleModel, style: str) -> str:
-        """Build the summarization prompt"""
-        
-        style_instructions = {
-            'short': 'Provide a 1-2 sentence summary.',
-            'concise': 'Provide a 2-3 sentence summary.',
-            'medium': 'Provide a 3-4 sentence summary.',
-            'long': 'Provide a paragraph summary (5-6 sentences).'
-        }
-        
-        length_instruction = style_instructions.get(style, style_instructions['concise'])
-        
-        prompt = f"""You are a professional news summarizer. Create a clear, accurate summary of this article.
-
-ARTICLE TITLE: {article.title}
-
-ARTICLE CONTENT:
-{article.content[:4000]}
-
-INSTRUCTIONS:
-{length_instruction}
-- Focus on key facts and main points
-- Maintain a neutral, objective tone
-- Do not include your own opinions
-- Be accurate and faithful to the original
-
-OUTPUT FORMAT (respond in this exact format):
-SUMMARY: [Your summary here]
-
-CATEGORY: [Choose one: Technology, Business, Science, Politics, Health, Entertainment, Sports, AI/ML, Finance, or General]
-
-SENTIMENT: [Positive, Negative, or Neutral]
-
-KEY POINTS:
-- [Point 1]
-- [Point 2]
-- [Point 3]
-
-READING TIME: [Estimated minutes to read the original article, just the number]"""
-
-        return prompt
-    
-    def _parse_response(self, response: str) -> SummaryResult:
-        """Parse LLM response into SummaryResult"""
-        
-        # Extract summary
-        summary_match = re.search(
-            r'SUMMARY:\s*(.+?)(?=\n\n|\n[A-Z]|$)', 
-            response, 
-            re.DOTALL | re.IGNORECASE
-        )
-        summary_text = summary_match.group(1).strip() if summary_match else response[:500]
-        
-        # Extract category
-        category_match = re.search(r'CATEGORY:\s*(\w+)', response, re.IGNORECASE)
-        category = category_match.group(1).strip() if category_match else "General"
-        
-        # Extract sentiment
-        sentiment_match = re.search(r'SENTIMENT:\s*(\w+)', response, re.IGNORECASE)
-        sentiment = sentiment_match.group(1).strip() if sentiment_match else "Neutral"
-        
-        # Extract key points
-        key_points = []
-        points_section = re.search(
-            r'KEY POINTS:(.+?)(?=READING TIME|$)', 
-            response, 
-            re.DOTALL | re.IGNORECASE
-        )
-        if points_section:
-            points_text = points_section.group(1)
-            key_points = [
-                p.strip('- ').strip() 
-                for p in points_text.split('\n') 
-                if p.strip().startswith('-')
-            ]
-        
-        # Extract reading time
-        time_match = re.search(r'READING TIME:\s*(\d+)', response, re.IGNORECASE)
-        reading_time = int(time_match.group(1)) if time_match else 1
-        
-        return SummaryResult(
-            text=summary_text,
-            key_points=key_points[:5],  # Limit to 5 points
-            category=category,
-            sentiment=sentiment,
-            reading_time=max(1, reading_time)
-        )
-    
-    def _estimate_reading_time(self, content: str) -> int:
-        """Estimate reading time in minutes"""
-        words = len(content.split())
-        minutes = max(1, round(words / 200))  # 200 words per minute
-        return minutes

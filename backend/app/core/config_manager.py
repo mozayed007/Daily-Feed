@@ -117,7 +117,12 @@ class AppConfig:
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     
     # Feed sources
-    sources: List[FeedSource] = field(default_factory=list)
+    sources: List[FeedSource] = field(default_factory=lambda: [
+        FeedSource(name="TechCrunch", url="https://techcrunch.com/feed/", category="Tech"),
+        FeedSource(name="The Verge", url="https://www.theverge.com/rss/index.xml", category="Tech"),
+        FeedSource(name="Hacker News", url="https://news.ycombinator.com/rss", category="Tech"),
+        FeedSource(name="Smol AI", url="https://news.smol.ai/rss", category="AI")
+    ])
 
 
 class ConfigManager:

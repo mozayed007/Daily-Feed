@@ -16,8 +16,44 @@ export function useUser() {
   return useQuery({
     queryKey: ['user'],
     queryFn: async () => {
-      const { data } = await api.get<User>('/users/me');
+      // Check for stored user ID
+      const userId = localStorage.getItem('current_user_id');
+      const url = userId ? `/users/me?user_id=${userId}` : '/users/me';
+      const { data } = await api.get<User>(url);
+      
+      // Store ID if not set (first load)
+      if (!userId && data.id) {
+        localStorage.setItem('current_user_id', data.id.toString());
+      }
       return data;
+    },
+  });
+}
+
+// Get all users (for switching)
+export function useAllUsers() {
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const { data } = await api.get<User[]>('/users');
+      return data;
+    },
+  });
+}
+
+// Switch user
+export function useSwitchUser() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (userId: number) => {
+      const { data } = await api.post<User>(`/users/switch/${userId}`);
+      return data;
+    },
+    onSuccess: (data) => {
+      localStorage.setItem('current_user_id', data.id.toString());
+      queryClient.invalidateQueries(); // Refresh all data for new user
+      window.location.reload(); // Hard reload to ensure clean state
     },
   });
 }

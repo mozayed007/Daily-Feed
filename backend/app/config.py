@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     
     ANTHROPIC_API_KEY: Optional[str] = None
     ANTHROPIC_MODEL: str = "claude-3-haiku-20240307"
+
+    Gemini_API_KEY: Optional[str] = None
     
     # Telegram
     TELEGRAM_BOT_TOKEN: Optional[str] = None

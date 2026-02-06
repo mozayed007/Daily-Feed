@@ -44,6 +44,32 @@ async def health_check():
     }
 
 
+@router.get("/sources", response_model=List[SourceResponse])
+async def get_sources(db: AsyncSession = Depends(get_db)):
+    """Get all enabled sources"""
+    result = await db.execute(
+        select(SourceModel).where(SourceModel.enabled == True)
+    )
+    sources = result.scalars().all()
+    return [SourceResponse.model_validate(s) for s in sources]
+
+
+@router.post("/sources/fetch")
+async def fetch_sources(
+    source_ids: Optional[List[int]] = None, 
+    background_tasks: BackgroundTasks = None
+):
+    """Trigger fetch for sources (runs in background)"""
+    from app.tools.fetch_tool import FetchTool
+    
+    async def run_fetch(ids):
+        tool = FetchTool()
+        await tool.execute(source_ids=ids)
+        
+    background_tasks.add_task(run_fetch, source_ids)
+    return {"message": "Fetch started in background"}
+
+
 # Articles
 @router.get("/articles", response_model=ArticleListResponse)
 async def get_articles(

@@ -5,9 +5,10 @@ Fetches articles from RSS feeds as a tool
 
 import asyncio
 from typing import Any, Dict, List, Optional
-from datetime import datetime
-from urllib.parse import urlparse
+from datetime import datetime, timezone
+from urllib.parse import urlparse, urljoin
 import socket
+import ipaddress
 
 import httpx
 import feedparser
@@ -22,11 +23,11 @@ from app.core.config_manager import get_config
 BLOCKED_HOSTS = {
     'localhost', '127.0.0.1', '0.0.0.0', '::1',
     '169.254.169.254',  # AWS metadata
-    '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16',  # Private ranges
 }
 
 MAX_FEED_SIZE = 10 * 1024 * 1024  # 10MB
 FETCH_TIMEOUT = 30  # seconds
+MAX_REDIRECTS = 5
 
 
 class FetchTool(Tool):
@@ -123,6 +124,19 @@ class FetchTool(Tool):
                 error=str(e)
             )
     
+    @staticmethod
+    def _is_public_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+        """Allow only routable public IPs."""
+        return not (
+            ip.is_private or
+            ip.is_loopback or
+            ip.is_link_local or
+            ip.is_multicast or
+            ip.is_reserved or
+            ip.is_unspecified or
+            getattr(ip, "is_site_local", False)
+        )
+
     def _validate_url(self, url: str) -> bool:
         """Validate URL for security (SSRF protection)."""
         try:
@@ -136,24 +150,40 @@ class FetchTool(Tool):
             hostname = parsed.hostname
             if not hostname:
                 return False
+            hostname = hostname.lower()
             
             # Check blocked hosts
-            if hostname.lower() in BLOCKED_HOSTS:
+            if hostname in BLOCKED_HOSTS:
                 return False
-            
-            # Check IP-based URLs
+
+            # If hostname itself is an IP literal, validate directly.
             try:
-                ip = socket.getaddrinfo(hostname, None)[0][4][0]
-                # Block private IP ranges
-                if ip.startswith(('10.', '172.16.', '172.17.', '172.18.', 
-                                  '172.19.', '172.20.', '172.21.', '172.22.',
-                                  '172.23.', '172.24.', '172.25.', '172.26.',
-                                  '172.27.', '172.28.', '172.29.', '172.30.',
-                                  '172.31.', '192.168.', '127.')):
+                ip_obj = ipaddress.ip_address(hostname)
+                return self._is_public_ip(ip_obj)
+            except ValueError:
+                pass
+
+            # Resolve DNS and reject if any answer is non-public.
+            try:
+                resolved = socket.getaddrinfo(
+                    hostname,
+                    parsed.port or (443 if parsed.scheme == "https" else 80),
+                    type=socket.SOCK_STREAM,
+                )
+                if not resolved:
                     return False
             except socket.gaierror:
-                pass  # DNS resolution failed, will fail on fetch anyway
-            
+                return False
+
+            seen_ips = set()
+            for info in resolved:
+                ip_str = info[4][0]
+                if ip_str in seen_ips:
+                    continue
+                seen_ips.add(ip_str)
+                if not self._is_public_ip(ipaddress.ip_address(ip_str)):
+                    return False
+
             return True
         except Exception:
             return False
@@ -163,25 +193,43 @@ class FetchTool(Tool):
         if not self._validate_url(url):
             raise ValueError(f"Invalid or blocked URL: {url}")
         
-        async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, follow_redirects=True) as client:
-            response = await client.get(url, headers={
-                'User-Agent': 'DailyFeed/1.1 (RSS Aggregator)'
-            })
-            response.raise_for_status()
-            
-            # Check content length
-            content_length = len(response.content)
-            if content_length > MAX_FEED_SIZE:
-                raise ValueError(f"Feed too large: {content_length} bytes (max {MAX_FEED_SIZE})")
-            
-            # Check content type
-            content_type = response.headers.get('content-type', '').lower()
-            if 'xml' not in content_type and 'rss' not in content_type and 'atom' not in content_type:
-                # Allow if response looks like XML
-                if not response.text.strip().startswith('<?xml'):
-                    raise ValueError(f"Invalid content type: {content_type}")
-            
-            return response.text
+        async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, follow_redirects=False) as client:
+            current_url = url
+            for _ in range(MAX_REDIRECTS + 1):
+                if not self._validate_url(current_url):
+                    raise ValueError(f"Invalid or blocked URL: {current_url}")
+
+                response = await client.get(current_url, headers={
+                    'User-Agent': 'DailyFeed/1.1 (RSS Aggregator)'
+                })
+
+                if 300 <= response.status_code < 400:
+                    location = response.headers.get("location")
+                    if not location:
+                        raise ValueError("Redirect response missing Location header")
+                    redirect_url = urljoin(str(response.url), location)
+                    if not self._validate_url(redirect_url):
+                        raise ValueError(f"Blocked redirect target: {redirect_url}")
+                    current_url = redirect_url
+                    continue
+
+                response.raise_for_status()
+
+                # Check content length
+                content_length = len(response.content)
+                if content_length > MAX_FEED_SIZE:
+                    raise ValueError(f"Feed too large: {content_length} bytes (max {MAX_FEED_SIZE})")
+
+                # Check content type
+                content_type = response.headers.get('content-type', '').lower()
+                if 'xml' not in content_type and 'rss' not in content_type and 'atom' not in content_type:
+                    # Allow if response looks like XML
+                    if not response.text.strip().startswith('<?xml'):
+                        raise ValueError(f"Invalid content type: {content_type}")
+
+                return response.text
+
+            raise ValueError(f"Too many redirects for URL: {url}")
     
     async def _fetch_source(self, source: SourceModel, max_articles: int) -> int:
         """Fetch articles from a single source."""
@@ -219,7 +267,7 @@ class FetchTool(Tool):
                     continue
             
             # Update source stats
-            source.last_fetch = datetime.utcnow()
+            source.last_fetch = datetime.now(timezone.utc)
             source.fetch_count += fetched
             
             await db.commit()
@@ -251,7 +299,7 @@ class FetchTool(Tool):
             source=source.name,
             category=source.category,
             published_at=published_at,
-            fetched_at=datetime.utcnow(),
+            fetched_at=datetime.now(timezone.utc),
             is_processed=False
         )
     
