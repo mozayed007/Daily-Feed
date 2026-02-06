@@ -2,7 +2,7 @@
 
 import logging
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -266,7 +266,7 @@ async def fetch_source(
             saved_count += 1
     
     # Update source stats
-    source.last_fetch = datetime.utcnow()
+    source.last_fetch = datetime.now(timezone.utc)
     source.fetch_count += saved_count
     await db.commit()
     
@@ -362,7 +362,7 @@ async def create_digest(
     """Create a digest from recent processed articles"""
     
     # Get recent processed articles
-    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     result = await db.execute(
         select(ArticleModel)
         .where(ArticleModel.is_processed == True)
@@ -399,7 +399,7 @@ async def create_digest(
         success = await delivery_agent.deliver_telegram(digest)
         if success:
             digest_model.delivered = True
-            digest_model.delivered_at = datetime.utcnow()
+            digest_model.delivered_at = datetime.now(timezone.utc)
             await db.commit()
     
     return {

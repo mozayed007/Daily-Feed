@@ -9,7 +9,7 @@ This module defines the core user-centric data models:
 
 import uuid
 import json
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 
@@ -37,7 +37,7 @@ class UserModel(Base):
     # Status
     is_active = Column(Boolean, default=True)
     onboarding_completed = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime, nullable=True)
     
     # Relationships
@@ -77,7 +77,7 @@ class UserPreferencesModel(Base):
     auto_adjust_interests = Column(Boolean, default=True)
     diversity_boost = Column(Float, default=0.1)  # 0-1, higher = more diverse content
     
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     user = relationship("UserModel", back_populates="preferences")
@@ -92,7 +92,7 @@ class UserInteractionModel(Base):
     article_id = Column(Integer, ForeignKey("articles.id"), nullable=False, index=True)
     
     # Delivery tracking
-    delivered_at = Column(DateTime, default=datetime.utcnow)
+    delivered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     digest_id = Column(String(36), ForeignKey("personalized_digests.id"), nullable=True)
     
     # Engagement tracking
@@ -110,7 +110,7 @@ class UserInteractionModel(Base):
     engagement_score = Column(Float, default=0.0)
     
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     user = relationship("UserModel", back_populates="interactions")
@@ -147,7 +147,7 @@ class PersonalizedDigestModel(Base):
     opened_at = Column(DateTime, nullable=True)
     click_count = Column(Integer, default=0)
     
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     user = relationship("UserModel", back_populates="digests")

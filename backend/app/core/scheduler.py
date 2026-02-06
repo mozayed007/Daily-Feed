@@ -5,7 +5,7 @@ Inspired by nanobot's scheduling approach
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
@@ -94,18 +94,20 @@ class CronParser:
     def get_next_run(cron_expr: str, after: Optional[datetime] = None) -> datetime:
         """Calculate the next run time for a cron expression."""
         fields = CronParser.parse(cron_expr)
-        after = after or datetime.utcnow()
+        after = after or datetime.now(timezone.utc).replace(tzinfo=None)
         
         # Start from next minute
         candidate = after.replace(second=0, microsecond=0) + timedelta(minutes=1)
         
         # Search for next matching time (max 1 year ahead)
         for _ in range(365 * 24 * 60):
+            # Convert Python weekday (0=Monday) to cron weekday (0=Sunday)
+            cron_weekday = (candidate.weekday() + 1) % 7
             if (candidate.minute in fields["minute"] and
                 candidate.hour in fields["hour"] and
                 candidate.day in fields["day"] and
                 candidate.month in fields["month"] and
-                candidate.weekday() in fields["dow"]):
+                cron_weekday in fields["dow"]):
                 return candidate
             
             candidate += timedelta(minutes=1)
@@ -192,7 +194,7 @@ class Scheduler:
             callback=callback,
             args=args,
             kwargs=kwargs or {},
-            next_run=datetime.utcnow() + timedelta(seconds=seconds)
+            next_run=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=seconds)
         )
         
         self.jobs[job_id] = job
@@ -263,7 +265,7 @@ class Scheduler:
     
     async def _check_and_run_jobs(self):
         """Check for due jobs and execute them."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         for job in self.jobs.values():
             if not job.enabled:
@@ -279,7 +281,7 @@ class Scheduler:
     async def _execute_job(self, job: ScheduledJob):
         """Execute a scheduled job."""
         job.status = JobStatus.RUNNING
-        job.last_run = datetime.utcnow()
+        job.last_run = datetime.now(timezone.utc).replace(tzinfo=None)
         
         try:
             logger.info(f"Executing job '{job.name}'")
@@ -301,9 +303,9 @@ class Scheduler:
         
         # Calculate next run time
         if job.cron:
-            job.next_run = CronParser.get_next_run(job.cron, after=datetime.utcnow())
+            job.next_run = CronParser.get_next_run(job.cron, after=datetime.now(timezone.utc).replace(tzinfo=None))
         elif job.interval_seconds:
-            job.next_run = datetime.utcnow() + timedelta(seconds=job.interval_seconds)
+            job.next_run = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=job.interval_seconds)
         
         job.status = JobStatus.PENDING
     

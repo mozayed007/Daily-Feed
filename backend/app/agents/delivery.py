@@ -3,7 +3,7 @@
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import quote
 
 import httpx
@@ -72,7 +72,7 @@ class DeliveryAgent:
         
         return DigestResult(
             id=digest_id,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             articles=articles,
             by_category=by_category,
             article_count=len(articles),
@@ -189,7 +189,7 @@ class DeliveryAgent:
         
         lines = [
             "DAILY NEWS DIGEST",
-            f"Date: {datetime.utcnow().strftime('%Y-%m-%d')}",
+            f"Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
             f"Articles: {len(articles)}",
             "=" * 50,
             ""

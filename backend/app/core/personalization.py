@@ -5,7 +5,7 @@ personalized content recommendations for each user.
 """
 
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 
@@ -192,7 +192,7 @@ class PersonalizationEngine:
         if not article.published_at:
             return 0.5  # Neutral for unknown dates
         
-        age = datetime.utcnow() - article.published_at
+        age = datetime.now(timezone.utc) - article.published_at
         age_hours = age.total_seconds() / 3600
         
         # Exponential decay

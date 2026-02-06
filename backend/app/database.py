@@ -1,7 +1,7 @@
 """Database configuration and models"""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, AsyncGenerator, Any
 from pydantic import HttpUrl, field_validator
 from contextlib import asynccontextmanager
@@ -56,7 +56,7 @@ class ArticleModel(Base):
     reading_time = Column(Integer, default=1)
     key_points = Column(JSON, default=list)
     published_at = Column(DateTime)
-    fetched_at = Column(DateTime, default=datetime.utcnow)
+    fetched_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_processed = Column(Boolean, default=False, index=True)
     critic_score = Column(Integer)
     
@@ -70,7 +70,7 @@ class DigestModel(Base):
     __tablename__ = "digests"
     
     id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     article_count = Column(Integer, default=0)
     delivered = Column(Boolean, default=False)
     delivered_at = Column(DateTime)
@@ -92,7 +92,7 @@ class SourceModel(Base):
     last_fetch = Column(DateTime)
     fetch_count = Column(Integer, default=0)
     error_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class SettingModel(Base):
@@ -102,7 +102,7 @@ class SettingModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(100), unique=True, nullable=False)
     value = Column(Text)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class LogModel(Base):
@@ -114,7 +114,7 @@ class LogModel(Base):
     message = Column(Text, nullable=False)
     source = Column(String(100))
     meta = Column(JSON, default=dict)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # Database operations

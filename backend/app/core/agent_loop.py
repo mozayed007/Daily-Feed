@@ -5,7 +5,7 @@ Coordinates tools to perform news aggregation tasks
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
@@ -319,7 +319,7 @@ class AgentLoop:
         
         # Get recent processed articles not yet in memory
         async with Database.get_session() as db:
-            cutoff = datetime.utcnow() - timedelta(days=7)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=7)
             result = await db.execute(
                 select(ArticleModel)
                 .where(ArticleModel.is_processed == True)
