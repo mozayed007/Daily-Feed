@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Environment
+.env
+backend/.env
+frontend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+backend/.pytest_cache/
+
+# Build outputs
+dist/
+frontend/dist/
+
+# Runtime data
+*.db
+backend/data/*.db
+
+# OS / Editor
+.DS_Store
+Thumbs.db

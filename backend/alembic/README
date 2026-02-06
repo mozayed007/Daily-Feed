@@ -1,0 +1,6 @@
+Alembic Database Migrations
+
+Usage:
+    alembic revision --autogenerate -m "Description"
+    alembic upgrade head
+    alembic downgrade -1
