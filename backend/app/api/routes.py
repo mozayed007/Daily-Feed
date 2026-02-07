@@ -65,9 +65,14 @@ async def fetch_sources(
     async def run_fetch(ids):
         tool = FetchTool()
         await tool.execute(source_ids=ids)
-        
-    background_tasks.add_task(run_fetch, source_ids)
-    return {"message": "Fetch started in background"}
+    
+    if background_tasks is not None:
+        background_tasks.add_task(run_fetch, source_ids)
+        return {"message": "Fetch started in background"}
+    else:
+        # Run synchronously if no background tasks available
+        await run_fetch(source_ids)
+        return {"message": "Fetch completed"}
 
 
 # Articles
