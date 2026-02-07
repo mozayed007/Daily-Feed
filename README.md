@@ -4,8 +4,10 @@ An intelligent, AI-powered news aggregator that learns what you care about and d
 
 ![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)
 ![Backend](https://img.shields.io/badge/backend-100%25-blue)
-![Tests](https://img.shields.io/badge/tests-35%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
+![Python](https://img.shields.io/badge/python-3.10+-blue?logo=python)
 ![Bun](https://img.shields.io/badge/bun-powered-f9f1e1?logo=bun)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
@@ -15,6 +17,7 @@ An intelligent, AI-powered news aggregator that learns what you care about and d
 
 - **Python 3.10+** (for backend)
 - **Bun** (for frontend) - `curl -fsSL https://bun.sh/install | bash`
+- **Ollama** (optional, for local LLM) - `curl -fsSL https://ollama.com/install.sh | sh`
 
 ### One-Command Setup
 
@@ -36,33 +39,31 @@ make frontend   # Terminal 2
 ```
 daily-feed/
 ├── README.md              # This file
-├── Makefile              # Build commands
-├── backend/              # Python FastAPI backend
-│   ├── app/             # Application code
-│   │   ├── api/        # API routes
-│   │   ├── core/       # Core engine (agent loop, personalization)
-│   │   ├── models/     # User models
-│   │   └── tools/      # RSS tools, LLM tools
-│   ├── scripts/        # Utility scripts
-│   │   ├── init_db.py
-│   │   ├── seed_demo.py
-│   │   └── demo_personalization.py
-│   ├── tests/          # Test suite
-│   ├── data/           # SQLite database
-│   └── main.py         # Entry point
+├── Makefile               # Build commands
+├── backend/               # Python FastAPI backend
+│   ├── app/               # Application code
+│   │   ├── api/           # API routes
+│   │   ├── agents/        # LLM-powered agents (summarizer, etc.)
+│   │   ├── core/          # Core engine (agent loop, personalization, scheduler)
+│   │   ├── models/        # User models
+│   │   └── tools/         # RSS tools, fetch tools
+│   ├── tests/             # Test suite
+│   ├── data/              # SQLite database
+│   └── main.py            # Entry point
 │
-├── frontend/            # React + TypeScript + Bun
+├── frontend/              # React + TypeScript + Bun
 │   ├── src/
-│   │   ├── hooks/     # React Query hooks
-│   │   ├── pages/     # Page components
-│   │   ├── lib/       # API client, utils
-│   │   └── types/     # TypeScript types
+│   │   ├── components/    # UI components
+│   │   ├── hooks/         # React Query hooks
+│   │   ├── pages/         # Page components
+│   │   ├── lib/           # API client, utils
+│   │   └── types/         # TypeScript types
 │   └── package.json
 │
-└── docs/               # Documentation
-    ├── api/           # API reference & types
-    ├── guides/        # User guides
-    └── architecture/  # Technical design docs
+└── docs/                  # Documentation
+    ├── api/               # API reference & types
+    ├── guides/            # User guides
+    └── architecture/      # Technical design docs
 ```
 
 ---
@@ -71,25 +72,34 @@ daily-feed/
 
 ### 🤖 Core Intelligence
 
-- **Agent Loop Architecture** - Dynamic task execution
-- **Multi-LLM Support** - Ollama, OpenAI, Anthropic
-- **Smart Summarization** - AI-generated summaries
-- **Content Critique** - Quality scoring
+- **Agent Loop Architecture** - Dynamic task orchestration with memory
+- **Multi-LLM Support** - Ollama, OpenAI, Anthropic, Google Gemini
+- **Smart Summarization** - AI-generated summaries with Pydantic AI
+- **Content Critique** - Quality scoring and filtering
 
-### 🎯 Personalization
+### 🎯 Personalization Engine
 
 - **Interest Learning** - Adapts to your reading patterns
-- **Topic Preferences** - Weighted interest system
+- **Topic Preferences** - Weighted interest system (0-1 scores)
 - **Source Ranking** - Prioritize trusted publishers
 - **Feedback Loop** - Like/dislike improves recommendations
-- **Diversity Protection** - Avoid filter bubbles
+- **Diversity Protection** - Avoid filter bubbles with diversity scoring
+- **Freshness Scoring** - Prioritize recent content
 
 ### ⚙️ Automation
 
-- **RSS Aggregation** - 7 pre-configured sources
-- **Built-in Scheduler** - Cron-based jobs
-- **Auto-Delivery** - Daily digests
-- **Memory System** - Long-term understanding
+- **RSS Aggregation** - 7+ pre-configured news sources
+- **Built-in Scheduler** - Cron-based jobs with no external dependencies
+- **Auto-Delivery** - Daily personalized digests
+- **Memory System** - Long-term user understanding
+
+### 🔧 Technical Features
+
+- **FastAPI Backend** - Async, high-performance REST API
+- **SQLite Database** - Zero-config local storage with SQLAlchemy
+- **React Frontend** - Modern UI with TanStack Query
+- **Tailwind CSS** - Beautiful, responsive design
+- **Full Type Safety** - TypeScript frontend, Pydantic backend
 
 ---
 
@@ -98,19 +108,19 @@ daily-feed/
 ```bash
 # Backend
 make backend-setup    # Install deps, init db, seed data
-make backend          # Start server
-make backend-test     # Run tests
+make backend          # Start server (http://localhost:8000)
+make backend-test     # Run pytest tests
 make backend-demo     # Run personalization demo
 
 # Frontend
 make frontend-setup   # Install Bun dependencies
-make frontend         # Start dev server
+make frontend         # Start dev server (http://localhost:5173)
 make frontend-build   # Production build
 
 # General
-make test            # Run all tests
-make clean           # Clean temp files
-make info            # Show project info
+make test             # Run all tests
+make clean            # Clean temp files
+make info             # Show project info
 ```
 
 ---
@@ -125,24 +135,28 @@ make info            # Show project info
 | Personalization  | `docs/guides/PERSONALIZATION_GUIDE.md`  | How personalization works |
 | Architecture     | `docs/architecture/`                    | Technical design          |
 
-Interactive API docs: `http://localhost:8000/docs`
+**Interactive API docs:** `http://localhost:8000/docs` (Swagger UI)
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-# Backend tests
+# Backend tests (pytest)
 make backend-test
+
+# Or directly
+cd backend && pytest -v
 
 # Frontend type check
 make frontend-typecheck
 ```
 
-**35 tests passing** covering:
+**Test Coverage:**
 
 - API endpoints
 - Personalization engine
+- Scheduler & cron parser
 - Tool functionality
 - Logging system
 
@@ -153,49 +167,84 @@ make frontend-typecheck
 ### Core Endpoints
 
 ```
-GET  /api/v1/articles              # List articles
-GET  /api/v1/articles/{id}         # Get article
-POST /api/v1/articles/{id}/summarize
-GET  /api/v1/sources               # List sources
-POST /api/v1/pipeline/{task}       # Run pipeline
+GET  /api/v1/health                    # Health check
+GET  /api/v1/articles                  # List articles (with filters)
+GET  /api/v1/articles/{id}             # Get article
+POST /api/v1/articles/{id}/summarize   # Summarize article
+GET  /api/v1/sources                   # List sources
+POST /api/v1/sources/fetch             # Trigger fetch
+POST /api/v1/pipeline/{task}           # Run pipeline (fetch/process/digest)
 ```
 
 ### Personalization Endpoints
 
 ```
-POST /api/v1/users/onboarding      # Complete onboarding
-GET  /api/v1/users/me/stats        # User stats
-GET  /api/v1/users/me/preferences  # Get preferences
-PATCH /api/v1/users/me/preferences # Update preferences
-POST /api/v1/users/me/feedback     # Article feedback
-POST /api/v1/users/me/digest/generate # Get personalized digest
+POST /api/v1/users/onboarding          # Complete onboarding
+GET  /api/v1/users/me                  # Get current user
+GET  /api/v1/users/me/stats            # User statistics
+GET  /api/v1/users/me/preferences      # Get preferences
+PATCH /api/v1/users/me/preferences     # Update preferences
+POST /api/v1/users/me/feedback         # Like/dislike article
+POST /api/v1/users/me/digest/generate  # Generate personalized digest
+```
+
+### Scheduler Endpoints
+
+```
+GET  /api/v1/scheduler/jobs            # List scheduled jobs
+POST /api/v1/scheduler/jobs            # Create job
+POST /api/v1/scheduler/start           # Start scheduler
+POST /api/v1/scheduler/stop            # Stop scheduler
 ```
 
 ---
 
-## 🥟 Why Bun?
+## 🏗️ Architecture
 
-```bash
-# 10x faster than npm
-bun install        # ⚡️ ~1 second
-npm install        # 🐌 ~10 seconds
-
-# Built-in TypeScript
-bun run script.ts  # No ts-node needed!
-
-# Hot reload
-bun run dev        # Lightning fast HMR
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    DAILY FEED ARCHITECTURE                      │
+├────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
+│  │  Frontend   │────│   FastAPI   │────│  SQLite DB  │        │
+│  │  React/Bun  │    │   Backend   │    │  + Models   │        │
+│  └─────────────┘    └──────┬──────┘    └─────────────┘        │
+│                            │                                    │
+│  ┌─────────────────────────┼─────────────────────────┐        │
+│  │                   AGENT LOOP                       │        │
+│  ├─────────────────────────┼─────────────────────────┤        │
+│  │  ┌──────────┐  ┌────────┴───────┐  ┌──────────┐   │        │
+│  │  │  Fetch   │  │ Summarizer     │  │  Critic  │   │        │
+│  │  │  Tool    │  │ Agent (LLM)    │  │  Agent   │   │        │
+│  │  └──────────┘  └────────────────┘  └──────────┘   │        │
+│  └───────────────────────────────────────────────────┘        │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────┐      │
+│  │              PERSONALIZATION ENGINE                   │      │
+│  │  • Interest scoring    • Diversity protection        │      │
+│  │  • Source ranking      • Feedback learning           │      │
+│  │  • Freshness decay     • Topic weighting             │      │
+│  └─────────────────────────────────────────────────────┘      │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────┐      │
+│  │                   SCHEDULER                           │      │
+│  │  • Cron expressions    • Interval jobs               │      │
+│  │  • Daily digest        • Auto-fetch                  │      │
+│  └─────────────────────────────────────────────────────┘      │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 📊 Project Stats
 
-```
-Backend:     ~8,000 LOC, 37 files
+```tex
+Backend:     ~10,000 LOC, 45+ files
 Frontend:    React + TypeScript + Tailwind
-Tests:       35 tests passing
-API:         33 endpoints
+Tests:       Comprehensive pytest suite
+API:         35+ endpoints
 Docs:        5 comprehensive guides
 ```
 
@@ -205,36 +254,56 @@ Docs:        5 comprehensive guides
 
 ### ✅ Completed
 
-- [x] Core agent loop
-- [x] 5 pluggable tools
-- [x] Personalization engine
-- [x] User preferences
-- [x] Feedback learning
-- [x] REST API
-- [x] Bun frontend template
+- [x] Core agent loop with memory
+- [x] 5+ pluggable tools (fetch, summarize, critique, memory, delivery)
+- [x] Personalization engine with diversity protection
+- [x] User preferences & feedback learning
+- [x] Built-in cron scheduler
+- [x] Full REST API (35+ endpoints)
+- [x] React + Bun frontend
+- [x] Comprehensive test suite
 
-### 🚧 Next
+### 🚧 In Progress
 
 - [ ] Onboarding wizard UI
-- [ ] Stats dashboard
+- [ ] Stats dashboard with charts
 - [ ] Preferences panel
 - [ ] Mobile responsive design
+
+---
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable            | Description                                   | Default                               |
+| ------------------- | --------------------------------------------- | ------------------------------------- |
+| `LLM_PROVIDER`      | LLM provider (ollama/openai/anthropic/gemini) | ollama                                |
+| `OLLAMA_URL`        | Ollama server URL                             | http://localhost:11434                |
+| `OLLAMA_MODEL`      | Model to use                                  | llama3.2                              |
+| `OPENAI_API_KEY`    | OpenAI API key                                | -                                     |
+| `ANTHROPIC_API_KEY` | Anthropic API key                             | -                                     |
+| `GEMINI_API_KEY`    | Google Gemini API key                         | -                                     |
+| `DATABASE_URL`      | SQLite connection string                      | sqlite+aiosqlite:///data/dailyfeed.db |
 
 ---
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Run `make test`
-4. Submit PR
+2. Create a feature branch (`git checkout -b feature/amazing`)
+3. Make your changes
+4. Run tests (`make test`)
+5. Commit (`git commit -m 'feat: add amazing feature'`)
+6. Push (`git push origin feature/amazing`)
+7. Open a Pull Request
 
 ---
 
 ## 📄 License
 
-MIT License
+MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Built with ❤️ using Python, FastAPI, and Bun** 🥟
+**Built with ❤️ using Python, FastAPI, React, and Bun** 🥟
