@@ -141,7 +141,7 @@ async def summarize_article(
     
     # Run summarization
     llm_client = LLMClientFactory.create()
-    summarizer = SummarizerAgent(llm_client)
+    summarizer = SummarizerAgent()
     critic = QualityCriticAgent(llm_client, settings.CRITIC_MIN_SCORE)
     
     summary = await summarizer.summarize_article(article)
@@ -172,12 +172,6 @@ async def summarize_article(
 
 
 # Sources
-@router.get("/sources", response_model=List[SourceResponse])
-async def get_sources(db: AsyncSession = Depends(get_db)):
-    """Get all RSS sources"""
-    result = await db.execute(select(SourceModel))
-    sources = result.scalars().all()
-    return [SourceResponse.model_validate(s) for s in sources]
 
 
 @router.post("/sources", response_model=SourceResponse)
@@ -343,7 +337,7 @@ async def run_process_pipeline(
     
     # Initialize agents
     llm_client = LLMClientFactory.create()
-    summarizer = SummarizerAgent(llm_client)
+    summarizer = SummarizerAgent()
     critic = QualityCriticAgent(llm_client, settings.CRITIC_MIN_SCORE)
     
     processed = 0

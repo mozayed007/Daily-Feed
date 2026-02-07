@@ -97,6 +97,11 @@ export interface PersonalizedDigest {
   sent_at?: string;
 }
 
+// Response types for user hooks
+export interface UserPreferencesResponse extends UserPreferences {}
+
+export interface UserInteractionResponse extends UserInteraction {}
+
 export interface PersonalizedArticle extends Article {
   score: number;
   score_breakdown: {

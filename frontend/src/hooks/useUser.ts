@@ -46,7 +46,7 @@ export function useSwitchUser() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (userId: number) => {
+    mutationFn: async (userId: string) => {
       const { data } = await api.post<User>(`/users/switch/${userId}`);
       return data;
     },

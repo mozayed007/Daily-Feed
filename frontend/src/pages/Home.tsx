@@ -30,7 +30,7 @@ export function Home() {
   };
 
   const handleFeedback = (articleId: number, type: 'like' | 'dislike' | 'save') => {
-    feedback.mutate({ articleId, feedback: type });
+    feedback.mutate({ article_id: articleId, feedback: type });
   };
 
   return (

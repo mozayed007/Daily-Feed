@@ -51,7 +51,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
   }, []);
 
   useEffect(() => {
-    return events.on('toast', (data) => {
+    return events.on<Omit<Toast, 'id'>>('toast', (data: Omit<Toast, 'id'>) => {
       addToast(data);
     });
   }, [addToast]);
