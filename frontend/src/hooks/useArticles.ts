@@ -62,9 +62,9 @@ export function useArticleFeedback() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ articleId, feedback }: ArticleFeedbackRequest) => {
+    mutationFn: async ({ article_id, feedback }: ArticleFeedbackRequest) => {
       await api.post('/users/me/feedback', {
-        article_id: articleId,
+        article_id,
         feedback,
       });
     },

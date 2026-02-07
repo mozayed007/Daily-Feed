@@ -140,6 +140,8 @@ export interface ArticleFilterParams {
   processed?: boolean;
   category?: string;
   source?: string;
+  page?: number;
+  page_size?: number;
   skip?: number;
   limit?: number;
 }

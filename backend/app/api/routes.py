@@ -387,7 +387,7 @@ async def create_digest(
     """Create a digest from recent processed articles"""
     
     # Get recent processed articles
-    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
     result = await db.execute(
         select(ArticleModel)
         .where(ArticleModel.is_processed == True)
@@ -424,7 +424,7 @@ async def create_digest(
         success = await delivery_agent.deliver_telegram(digest)
         if success:
             digest_model.delivered = True
-            digest_model.delivered_at = datetime.utcnow()
+            digest_model.delivered_at = datetime.now(timezone.utc).replace(tzinfo=None)
             await db.commit()
     
     return {
