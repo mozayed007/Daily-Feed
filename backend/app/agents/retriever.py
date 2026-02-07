@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 import feedparser
@@ -54,6 +54,7 @@ class FeedRetrieverAgent:
         sources: Optional[List[SourceConfig]] = None
     ) -> List[ArticleModel]:
         """Fetch articles from all enabled sources"""
+        from sqlalchemy import select
         
         if sources is None:
             # Get sources from database
@@ -240,7 +241,7 @@ class FeedRetrieverAgent:
         )
         source = result.scalar_one_or_none()
         if source:
-            source.last_fetch = datetime.utcnow()
+            source.last_fetch = datetime.now(timezone.utc)
             source.fetch_count += count
     
     async def _increment_source_error(self, db_session, source_name: str):
@@ -255,7 +256,3 @@ class FeedRetrieverAgent:
     async def close(self):
         """Close HTTP client"""
         await self.client.aclose()
-
-
-# Import select for queries
-from sqlalchemy import select

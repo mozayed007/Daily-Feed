@@ -192,11 +192,7 @@ class PersonalizationEngine:
         if not article.published_at:
             return 0.5  # Neutral for unknown dates
         
-        published_at = article.published_at
-        if published_at.tzinfo is None:
-            published_at = published_at.replace(tzinfo=timezone.utc)
-            
-        age = datetime.now(timezone.utc) - published_at
+        age = datetime.now(timezone.utc) - article.published_at
         age_hours = age.total_seconds() / 3600
         
         # Exponential decay
@@ -210,8 +206,8 @@ class PersonalizationEngine:
         Uses critique score if available, otherwise estimates from content.
         """
         # If we have a critique score, use it
-        if hasattr(article, 'critic_score') and article.critic_score:
-            return article.critic_score / 10.0
+        if hasattr(article, 'critique_score') and article.critique_score:
+            return article.critique_score / 10.0
         
         # Estimate from content length and structure
         score = 0.5  # Base score

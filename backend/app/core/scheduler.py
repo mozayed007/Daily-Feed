@@ -6,7 +6,7 @@ Inspired by nanobot's scheduling approach
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Dict, List, Optional, Any, Set
+from typing import Callable, Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
 import re
@@ -40,31 +40,12 @@ class ScheduledJob:
     status: JobStatus = JobStatus.PENDING
     error_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert job to dictionary for APIs/tests."""
-        return {
-            "id": self.id,
-            "name": self.name,
-            "cron": self.cron,
-            "interval_seconds": self.interval_seconds,
-            "enabled": self.enabled,
-            "last_run": self.last_run,
-            "next_run": self.next_run,
-            "run_count": self.run_count,
-            "status": self.status,
-            "error_count": self.error_count,
-        }
-
-    def __getitem__(self, key: str) -> Any:
-        """Dict-like access for backward compatibility."""
-        return self.to_dict()[key]
-
 
 class CronParser:
     """Parse and evaluate cron expressions."""
     
     @staticmethod
-    def parse(cron_expr: str) -> Dict[str, Set[int]]:
+    def parse(cron_expr: str) -> Dict[str, List[int]]:
         """
         Parse a cron expression into field values.
         
@@ -78,11 +59,11 @@ class CronParser:
         minute, hour, day, month, dow = parts
         
         return {
-            "minute": set(CronParser._parse_field(minute, 0, 59)),
-            "hour": set(CronParser._parse_field(hour, 0, 23)),
-            "day": set(CronParser._parse_field(day, 1, 31)),
-            "month": set(CronParser._parse_field(month, 1, 12)),
-            "dow": set(CronParser._parse_field(dow, 0, 6)),  # 0 = Sunday
+            "minute": CronParser._parse_field(minute, 0, 59),
+            "hour": CronParser._parse_field(hour, 0, 23),
+            "day": CronParser._parse_field(day, 1, 31),
+            "month": CronParser._parse_field(month, 1, 12),
+            "dow": CronParser._parse_field(dow, 0, 6),  # 0 = Sunday
         }
     
     @staticmethod
@@ -113,7 +94,7 @@ class CronParser:
     def get_next_run(cron_expr: str, after: Optional[datetime] = None) -> datetime:
         """Calculate the next run time for a cron expression."""
         fields = CronParser.parse(cron_expr)
-        after = after or datetime.now(timezone.utc)
+        after = after or datetime.now(timezone.utc).replace(tzinfo=None)
         
         # Start from next minute
         candidate = after.replace(second=0, microsecond=0) + timedelta(minutes=1)
@@ -213,7 +194,7 @@ class Scheduler:
             callback=callback,
             args=args,
             kwargs=kwargs or {},
-            next_run=datetime.now(timezone.utc) + timedelta(seconds=seconds)
+            next_run=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=seconds)
         )
         
         self.jobs[job_id] = job
@@ -284,7 +265,7 @@ class Scheduler:
     
     async def _check_and_run_jobs(self):
         """Check for due jobs and execute them."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         for job in self.jobs.values():
             if not job.enabled:
@@ -300,7 +281,7 @@ class Scheduler:
     async def _execute_job(self, job: ScheduledJob):
         """Execute a scheduled job."""
         job.status = JobStatus.RUNNING
-        job.last_run = datetime.now(timezone.utc)
+        job.last_run = datetime.now(timezone.utc).replace(tzinfo=None)
         
         try:
             logger.info(f"Executing job '{job.name}'")
@@ -322,9 +303,9 @@ class Scheduler:
         
         # Calculate next run time
         if job.cron:
-            job.next_run = CronParser.get_next_run(job.cron, after=datetime.now(timezone.utc))
+            job.next_run = CronParser.get_next_run(job.cron, after=datetime.now(timezone.utc).replace(tzinfo=None))
         elif job.interval_seconds:
-            job.next_run = datetime.now(timezone.utc) + timedelta(seconds=job.interval_seconds)
+            job.next_run = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=job.interval_seconds)
         
         job.status = JobStatus.PENDING
     
@@ -342,7 +323,7 @@ class Scheduler:
             name="Daily Digest",
             cron=cron_expr,
             callback=pipeline_callback,
-            kwargs={"task_type": "digest"},
+            kwargs={"task": "digest"},
             job_id="daily_digest"
         )
         
@@ -352,7 +333,7 @@ class Scheduler:
                 name="Auto Fetch",
                 seconds=config.pipeline.auto_fetch_interval_minutes * 60,
                 callback=pipeline_callback,
-                kwargs={"task_type": "fetch"},
+                kwargs={"task": "fetch"},
                 job_id="auto_fetch"
             )
         

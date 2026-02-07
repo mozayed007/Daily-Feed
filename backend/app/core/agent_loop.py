@@ -5,7 +5,7 @@ Coordinates tools to perform news aggregation tasks
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
@@ -123,14 +123,10 @@ class AgentLoop:
         
         while pending_tasks:
             # Find tasks that are ready (no dependencies or dependencies completed)
-            ready_tasks = []
-            for t in pending_tasks.values():
-                if t.depends_on is None:
-                    ready_tasks.append(t)
-                    continue
-                dependency = completed_tasks.get(t.depends_on)
-                if dependency and dependency.status == TaskStatus.COMPLETED:
-                    ready_tasks.append(t)
+            ready_tasks = [
+                t for t in pending_tasks.values()
+                if t.depends_on is None or t.depends_on in completed_tasks
+            ]
             
             if not ready_tasks:
                 # Deadlock - remaining tasks have unmet dependencies
@@ -158,7 +154,7 @@ class AgentLoop:
         logger.info(f"Workflow '{workflow.name}' completed with status: {workflow.status.value}")
         return workflow
     
-    async def run_pipeline(self, task_type: Optional[str] = None, **params) -> Dict[str, Any]:
+    async def run_pipeline(self, task_type: str, **params) -> Dict[str, Any]:
         """
         Run a predefined pipeline workflow.
         
@@ -169,10 +165,6 @@ class AgentLoop:
         - full: Fetch -> Process -> Digest
         """
         
-        task_type = task_type or params.pop("task", None)
-        if not task_type:
-            return {"success": False, "error": "task_type is required"}
-
         if task_type == "fetch":
             return await self._run_fetch_pipeline(**params)
         
@@ -189,7 +181,7 @@ class AgentLoop:
             return await self._run_memory_sync(**params)
         
         else:
-            return {"success": False, "error": f"Unknown pipeline type: {task_type}"}
+            return {"error": f"Unknown pipeline type: {task_type}"}
     
     async def _run_fetch_pipeline(self, **params) -> Dict[str, Any]:
         """Run fetch pipeline."""
@@ -312,13 +304,8 @@ class AgentLoop:
         # Step 3: Digest
         digest_result = await self._run_digest_pipeline(**params.get("digest", {}))
         
-        success = all(
-            result.get("success", False)
-            for result in (fetch_result, process_result, digest_result)
-        )
-
         return {
-            "success": success,
+            "success": True,
             "fetch": fetch_result,
             "process": process_result,
             "digest": digest_result
@@ -332,7 +319,7 @@ class AgentLoop:
         
         # Get recent processed articles not yet in memory
         async with Database.get_session() as db:
-            cutoff = datetime.utcnow() - timedelta(days=7)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=7)
             result = await db.execute(
                 select(ArticleModel)
                 .where(ArticleModel.is_processed == True)

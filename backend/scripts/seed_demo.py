@@ -57,12 +57,6 @@ async def seed_demo_data():
                 category="Technology",
                 enabled=True
             ),
-            SourceModel(
-                name="Smol AI",
-                url="https://news.smol.ai/rss",
-                category="AI",
-                enabled=True
-            ),
         ]
         
         for source in sources:

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { events } from './events';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
@@ -20,7 +21,14 @@ export const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API Error:', error.response?.data || error.message);
+    const message = error.response?.data?.detail || error.message;
+    console.error('API Error:', message);
+    
+    events.emit('toast', {
+      type: 'error',
+      title: 'API Error',
+      message: typeof message === 'string' ? message : 'An unexpected error occurred.',
+    });
     
     // Handle specific error codes
     if (error.response?.status === 404) {
