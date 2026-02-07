@@ -2,7 +2,7 @@
 
 import logging
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -291,7 +291,7 @@ async def fetch_source(
             saved_count += 1
     
     # Update source stats
-    source.last_fetch = datetime.utcnow()
+    source.last_fetch = datetime.now(timezone.utc).replace(tzinfo=None)
     source.fetch_count += saved_count
     await db.commit()
     

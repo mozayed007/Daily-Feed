@@ -92,7 +92,7 @@ class SummarizerAgent:
 ARTICLE TITLE: {article.title}
 
 ARTICLE CONTENT:
-{article.content[:4000]}
+{(article.content or "")[:4000]}
 
 INSTRUCTIONS:
 {length_instruction}
