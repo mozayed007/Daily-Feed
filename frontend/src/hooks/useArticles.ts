@@ -10,8 +10,16 @@ import type {
 // Get articles list
 export function useArticles(params: ArticleFilterParams = {}) {
   const searchParams = new URLSearchParams();
-  if (params.limit) searchParams.set('limit', params.limit.toString());
-  if (params.skip) searchParams.set('skip', params.skip.toString());
+  if (params.page) {
+    searchParams.set('page', params.page.toString());
+  } else if (params.skip !== undefined && params.limit) {
+    searchParams.set('page', Math.floor(params.skip / params.limit + 1).toString());
+  }
+  if (params.page_size) {
+    searchParams.set('page_size', params.page_size.toString());
+  } else if (params.limit) {
+    searchParams.set('page_size', params.limit.toString());
+  }
   if (params.processed !== undefined) searchParams.set('processed', params.processed.toString());
   if (params.category) searchParams.set('category', params.category);
   if (params.source) searchParams.set('source', params.source);

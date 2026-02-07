@@ -5,7 +5,7 @@ Efficient lifelong memory with semantic compression
 
 import json
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional, Set
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -135,7 +135,7 @@ class SimpleMemStore:
         Store a new memory unit.
         Applies semantic compression to create atomic, self-contained fact.
         """
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
         unit_id = self._generate_id(content, timestamp)
         
         unit = MemoryUnit(
@@ -197,7 +197,7 @@ class SimpleMemStore:
                 params.append(category)
             
             if time_range_days:
-                cutoff = (datetime.utcnow() - timedelta(days=time_range_days)).isoformat()
+                cutoff = (datetime.now(timezone.utc) - timedelta(days=time_range_days)).isoformat()
                 where_clauses.append("timestamp >= ?")
                 params.append(cutoff)
             
@@ -251,7 +251,7 @@ class SimpleMemStore:
                 UPDATE memory_units 
                 SET access_count = access_count + 1, last_accessed = ?
                 WHERE id = ?
-            """, (datetime.utcnow().isoformat(), unit_id))
+            """, (datetime.now(timezone.utc).isoformat(), unit_id))
             conn.commit()
     
     def synthesize(
@@ -306,7 +306,7 @@ class SimpleMemStore:
             """, (
                 json.dumps(unit_ids),
                 new_unit.id,
-                datetime.utcnow().isoformat(),
+                datetime.now(timezone.utc).isoformat(),
                 reason
             ))
             conn.commit()
@@ -327,7 +327,7 @@ class SimpleMemStore:
             recent = conn.execute("""
                 SELECT COUNT(*) FROM memory_units 
                 WHERE timestamp >= ?
-            """, ((datetime.utcnow() - timedelta(days=7)).isoformat(),)).fetchone()[0]
+            """, ((datetime.now(timezone.utc) - timedelta(days=7)).isoformat(),)).fetchone()[0]
             
             avg_importance = conn.execute("""
                 SELECT AVG(importance) FROM memory_units
@@ -350,7 +350,7 @@ class SimpleMemStore:
     
     def clear_old(self, days: int = 30, min_importance: float = 0.3):
         """Clear old, low-importance memories."""
-        cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""

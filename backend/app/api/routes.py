@@ -44,6 +44,37 @@ async def health_check():
     }
 
 
+@router.get("/sources", response_model=List[SourceResponse])
+async def get_sources(db: AsyncSession = Depends(get_db)):
+    """Get all enabled sources"""
+    result = await db.execute(
+        select(SourceModel).where(SourceModel.enabled == True)
+    )
+    sources = result.scalars().all()
+    return [SourceResponse.model_validate(s) for s in sources]
+
+
+@router.post("/sources/fetch")
+async def fetch_sources(
+    source_ids: Optional[List[int]] = None, 
+    background_tasks: BackgroundTasks = None
+):
+    """Trigger fetch for sources (runs in background)"""
+    from app.tools.fetch_tool import FetchTool
+    
+    async def run_fetch(ids):
+        tool = FetchTool()
+        await tool.execute(source_ids=ids)
+    
+    if background_tasks is not None:
+        background_tasks.add_task(run_fetch, source_ids)
+        return {"message": "Fetch started in background"}
+    else:
+        # Run synchronously if no background tasks available
+        await run_fetch(source_ids)
+        return {"message": "Fetch completed"}
+
+
 # Articles
 @router.get("/articles", response_model=ArticleListResponse)
 async def get_articles(
@@ -115,7 +146,7 @@ async def summarize_article(
     
     # Run summarization
     llm_client = LLMClientFactory.create()
-    summarizer = SummarizerAgent(llm_client)
+    summarizer = SummarizerAgent()
     critic = QualityCriticAgent(llm_client, settings.CRITIC_MIN_SCORE)
     
     summary = await summarizer.summarize_article(article)
@@ -146,12 +177,6 @@ async def summarize_article(
 
 
 # Sources
-@router.get("/sources", response_model=List[SourceResponse])
-async def get_sources(db: AsyncSession = Depends(get_db)):
-    """Get all RSS sources"""
-    result = await db.execute(select(SourceModel))
-    sources = result.scalars().all()
-    return [SourceResponse.model_validate(s) for s in sources]
 
 
 @router.post("/sources", response_model=SourceResponse)
@@ -317,7 +342,7 @@ async def run_process_pipeline(
     
     # Initialize agents
     llm_client = LLMClientFactory.create()
-    summarizer = SummarizerAgent(llm_client)
+    summarizer = SummarizerAgent()
     critic = QualityCriticAgent(llm_client, settings.CRITIC_MIN_SCORE)
     
     processed = 0

@@ -3,7 +3,7 @@ Deliver Tool - Converted from Delivery Agent
 Delivers digests to messaging platforms as a tool
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from app.core.tool_base import Tool, ToolResult
@@ -65,9 +65,7 @@ class DeliverTool(Tool):
         try:
             # Get recent processed articles
             from sqlalchemy import select
-            from datetime import timedelta
-            
-            cutoff = datetime.utcnow() - timedelta(hours=hours)
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
             
             async with Database.get_session() as db:
                 result = await db.execute(
@@ -108,7 +106,7 @@ class DeliverTool(Tool):
                     telegram_sent = await self._send_telegram(digest_content)
                     if telegram_sent:
                         digest.delivered = True
-                        digest.delivered_at = datetime.utcnow()
+                        digest.delivered_at = datetime.now(timezone.utc)
                 
                 await db.commit()
                 
@@ -143,7 +141,7 @@ class DeliverTool(Tool):
         
         lines = [
             "📰 DAILY NEWS DIGEST",
-            f"📅 {datetime.utcnow().strftime('%Y-%m-%d')}",
+            f"📅 {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
             f"📊 {len(articles)} articles",
             "═" * 40,
             ""

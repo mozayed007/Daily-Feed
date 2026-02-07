@@ -30,7 +30,7 @@ export function Home() {
   };
 
   const handleFeedback = (articleId: number, type: 'like' | 'dislike' | 'save') => {
-    feedback.mutate({ articleId, feedback: type });
+    feedback.mutate({ article_id: articleId, feedback: type });
   };
 
   return (
@@ -279,7 +279,9 @@ function ArticleCard({ article, index, onFeedback }: ArticleCardProps) {
 
           {/* Title */}
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
-            {article.title}
+            <a href={article.url} target="_blank" rel="noopener noreferrer">
+              {article.title}
+            </a>
           </h3>
 
           {/* Summary */}
@@ -331,7 +333,7 @@ function ArticleCard({ article, index, onFeedback }: ArticleCardProps) {
               {article.summary && (
                 <button
                   onClick={() => setExpanded(!expanded)}
-                  className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium"
+                  className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium cursor-pointer z-10"
                 >
                   {expanded ? 'Show less' : 'Read more'}
                 </button>

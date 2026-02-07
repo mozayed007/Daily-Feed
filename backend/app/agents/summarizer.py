@@ -52,12 +52,13 @@ class SummarizerAgent:
             
         except Exception as e:
             logger.error(f"Error summarizing article {article.id}: {e}")
+            content = article.content or ""
             return SummaryResult(
-                text=article.content[:300] + "..." if len(article.content) > 300 else article.content,
+                text=content[:300] + "..." if len(content) > 300 else content,
                 key_points=[],
                 category=article.category or "General",
                 sentiment="Neutral",
-                reading_time=self._estimate_reading_time(article.content),
+                reading_time=self._estimate_reading_time(content),
                 success=False,
                 error=str(e)
             )

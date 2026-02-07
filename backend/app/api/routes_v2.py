@@ -25,7 +25,7 @@ router = APIRouter()
 
 # Include user routes
 from app.api.user_routes import router as user_router
-router.include_router(user_router, prefix="/users")
+router.include_router(user_router)
 
 
 # Dependency

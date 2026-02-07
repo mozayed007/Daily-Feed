@@ -145,13 +145,13 @@ export function Onboarding() {
                   className="space-y-6"
                 >
                   <div className="text-center space-y-4">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl flex items-center justify-center mx-auto">
-                      <Sparkles className="w-10 h-10 text-blue-600" />
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/50 dark:to-purple-900/50 rounded-3xl flex items-center justify-center mx-auto">
+                      <Sparkles className="w-10 h-10 text-blue-600 dark:text-blue-400" />
                     </div>
-                    <h3 className="text-2xl font-bold text-slate-900">
+                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
                       Welcome to Daily Feed
                     </h3>
-                    <p className="text-slate-600 max-w-md mx-auto">
+                    <p className="text-slate-600 dark:text-slate-300 max-w-md mx-auto">
                       Get personalized news digests powered by AI. 
                       We'll learn what you like and deliver the perfect content.
                     </p>
@@ -163,10 +163,10 @@ export function Onboarding() {
                       { icon: BookOpen, label: 'Learn', desc: 'Adapts to you' },
                       { icon: TrendingUp, label: 'Track', desc: 'See progress' },
                     ].map((feature) => (
-                      <div key={feature.label} className="text-center p-4 rounded-xl bg-slate-50">
-                        <feature.icon className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                        <p className="font-medium text-slate-900">{feature.label}</p>
-                        <p className="text-xs text-slate-500">{feature.desc}</p>
+                      <div key={feature.label} className="text-center p-4 rounded-xl bg-slate-50 dark:bg-slate-700/50">
+                        <feature.icon className="w-6 h-6 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
+                        <p className="font-medium text-slate-900 dark:text-white">{feature.label}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{feature.desc}</p>
                       </div>
                     ))}
                   </div>
@@ -194,7 +194,7 @@ export function Onboarding() {
                   exit={{ opacity: 0 }}
                   className="space-y-4"
                 >
-                  <p className="text-sm text-slate-500 text-center mb-4">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">
                     Select at least 3 topics you're interested in
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

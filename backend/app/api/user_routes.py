@@ -1,7 +1,7 @@
 """User management and personalization API routes."""
 
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func, desc
@@ -134,8 +134,7 @@ async def get_user_stats(db: AsyncSession = Depends(get_db)):
     open_rate = (opened_digests / total_digests * 100) if total_digests > 0 else 0
     
     # Last 7 days activity
-    from datetime import timedelta
-    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
     
     result = await db.execute(
         select(func.date(UserInteractionModel.created_at), func.count())
@@ -150,7 +149,7 @@ async def get_user_stats(db: AsyncSession = Depends(get_db)):
     
     last_7_days = []
     for i in range(7):
-        day = (datetime.utcnow() - timedelta(days=i)).date()
+        day = (datetime.now(timezone.utc) - timedelta(days=i)).date()
         last_7_days.insert(0, activity_by_day.get(day, 0))
     
     return UserStats(
@@ -176,7 +175,7 @@ async def complete_onboarding(data: OnboardingData, db: AsyncSession = Depends(g
     if not user:
         # Create new user
         user = UserModel(
-            email=f"user_{datetime.utcnow().timestamp()}@local",
+            email=f"user_{datetime.now(timezone.utc).timestamp()}@local",
             name=data.name
         )
         db.add(user)
@@ -317,7 +316,7 @@ async def record_interaction(
         
         # Update opened_at if opened
         if interaction.opened and not existing.opened_at:
-            existing.opened_at = datetime.utcnow()
+            existing.opened_at = datetime.now(timezone.utc)
         
         await db.commit()
         await db.refresh(existing)
@@ -335,7 +334,7 @@ async def record_interaction(
         )
         
         if interaction.opened:
-            new_interaction.opened_at = datetime.utcnow()
+            new_interaction.opened_at = datetime.now(timezone.utc)
         
         db.add(new_interaction)
         await db.commit()
@@ -503,8 +502,7 @@ async def generate_personalized_digest(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User preferences not found")
     
     # Get recent unprocessed articles
-    from datetime import timedelta
-    cutoff = datetime.utcnow() - timedelta(days=7)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
     
     result = await db.execute(
         select(ArticleModel)
@@ -558,7 +556,7 @@ async def generate_personalized_digest(db: AsyncSession = Depends(get_db)):
             user_id=user.id,
             article_id=article_id,
             digest_id=digest.id,
-            delivered_at=datetime.utcnow()
+            delivered_at=datetime.now(timezone.utc)
         )
         db.add(interaction)
     
@@ -578,7 +576,7 @@ async def generate_personalized_digest(db: AsyncSession = Depends(get_db)):
         response_articles.append({
             "id": s.article.id,
             "title": s.article.title,
-            "source": s.article.source_name,
+            "source": s.article.source,
             "category": s.article.category,
             "published_at": s.article.published_at.isoformat() if s.article.published_at else None,
             "score": s.score,

@@ -81,7 +81,7 @@ export function Preferences() {
 
   const handleRemoveBlockedTopic = (topic: string) => {
     updatePreferences.mutate({
-      exclude_topics: preferences?.exclude_topics?.filter((t) => t !== topic) || [],
+      exclude_topics: preferences?.exclude_topics?.filter((t: string) => t !== topic) || [],
     });
   };
 
@@ -254,7 +254,7 @@ export function Preferences() {
                           {SUMMARY_LENGTHS.map((length) => (
                             <button
                               key={length.id}
-                              onClick={() => updatePreferences.mutate({ summary_length: length.id })}
+                              onClick={() => updatePreferences.mutate({ summary_length: length.id as 'short' | 'medium' | 'long' })}
                               className={`p-4 rounded-xl border-2 text-center transition-all ${
                                 preferences?.summary_length === length.id
                                   ? 'border-blue-500 bg-blue-50'
@@ -278,7 +278,7 @@ export function Preferences() {
                           {FRESHNESS_OPTIONS.map((option) => (
                             <button
                               key={option.id}
-                              onClick={() => updatePreferences.mutate({ freshness_preference: option.id })}
+                              onClick={() => updatePreferences.mutate({ freshness_preference: option.id as 'breaking' | 'daily' | 'weekly' })}
                               className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
                                 preferences?.freshness_preference === option.id
                                   ? 'border-blue-500 bg-blue-50'
@@ -344,7 +344,7 @@ export function Preferences() {
                           </button>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {preferences?.exclude_topics?.map((topic) => (
+                          {preferences?.exclude_topics?.map((topic: string) => (
                             <span
                               key={topic}
                               className="inline-flex items-center gap-1 px-3 py-1 bg-rose-100 text-rose-700 rounded-full text-sm"

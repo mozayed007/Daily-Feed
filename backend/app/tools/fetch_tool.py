@@ -5,7 +5,7 @@ Fetches articles from RSS feeds as a tool
 
 import asyncio
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 import socket
 
@@ -218,9 +218,14 @@ class FetchTool(Tool):
                 except Exception:
                     continue
             
-            # Update source stats
-            source.last_fetch = datetime.utcnow()
-            source.fetch_count += fetched
+            # Re-fetch the source within this session to update it
+            source_result = await db.execute(
+                select(SourceModel).where(SourceModel.id == source.id)
+            )
+            db_source = source_result.scalar_one_or_none()
+            if db_source:
+                db_source.last_fetch = datetime.now(timezone.utc)
+                db_source.fetch_count += fetched
             
             await db.commit()
         
@@ -251,7 +256,7 @@ class FetchTool(Tool):
             source=source.name,
             category=source.category,
             published_at=published_at,
-            fetched_at=datetime.utcnow(),
+            fetched_at=datetime.now(timezone.utc),
             is_processed=False
         )
     
