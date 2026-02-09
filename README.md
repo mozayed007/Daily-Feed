@@ -18,6 +18,7 @@ An intelligent, AI-powered news aggregator that learns what you care about and d
 - **Python 3.10+** (for backend)
 - **Bun** (for frontend) - `curl -fsSL https://bun.sh/install | bash`
 - **Ollama** (optional, for local LLM) - `curl -fsSL https://ollama.com/install.sh | sh`
+- **Alembic** (included in backend requirements, used for migrations)
 
 ### One-Command Setup
 
@@ -116,11 +117,27 @@ make backend-demo     # Run personalization demo
 make frontend-setup   # Install Bun dependencies
 make frontend         # Start dev server (http://localhost:5173)
 make frontend-build   # Production build
+make frontend-lint    # Lint frontend
+make frontend-typecheck # Type-check frontend
 
 # General
 make test             # Run all tests
 make clean            # Clean temp files
 make info             # Show project info
+```
+
+### Code Quality
+
+```bash
+# Backend formatting
+cd backend && black app/ && isort app/
+
+# Backend type checking (optional in current setup)
+cd backend && mypy app/
+
+# Frontend lint/format
+make frontend-lint
+cd frontend && bun run format
 ```
 
 ---
@@ -147,12 +164,15 @@ make backend-test
 
 # Or directly
 cd backend && pytest -v
-
-# Frontend type check
+cd backend && pytest --cov
+# Frontend quality checks
 make frontend-typecheck
+make frontend-lint
 ```
 
-**Test Coverage:**
+Frontend unit/integration tests are not implemented yet in this repository; use type-checking and linting as the current frontend quality gates.
+
+**Backend Coverage Includes:**
 
 - API endpoints
 - Personalization engine
@@ -278,13 +298,30 @@ Docs:        5 comprehensive guides
 
 | Variable            | Description                                   | Default                               |
 | ------------------- | --------------------------------------------- | ------------------------------------- |
-| `LLM_PROVIDER`      | LLM provider (ollama/openai/anthropic/gemini) | ollama                                |
-| `OLLAMA_URL`        | Ollama server URL                             | `http://localhost:11434`              |
-| `OLLAMA_MODEL`      | Model to use                                  | llama3.2                              |
-| `OPENAI_API_KEY`    | OpenAI API key                                | -                                     |
-| `ANTHROPIC_API_KEY` | Anthropic API key                             | -                                     |
-| `GEMINI_API_KEY`    | Google Gemini API key                         | -                                     |
-| `DATABASE_URL`      | SQLite connection string                      | sqlite+aiosqlite:///data/dailyfeed.db |
+| `DAILYFEED_LLM_PROVIDER` | LLM provider (ollama/openai/anthropic/gemini) | ollama                           |
+| `DAILYFEED_OLLAMA_URL`   | Ollama server URL                             | `http://localhost:11434`         |
+| `DAILYFEED_OLLAMA_MODEL` | Model to use                                  | llama3.2                           |
+| `OPENAI_API_KEY`         | OpenAI API key                                | -                                  |
+| `ANTHROPIC_API_KEY`      | Anthropic API key                             | -                                  |
+| `GEMINI_API_KEY`         | Google Gemini API key                         | -                                  |
+| `DAILYFEED_DATABASE_URL` | SQLite connection string                      | sqlite+aiosqlite:///data/dailyfeed.db |
+
+Most runtime config keys use the `DAILYFEED_` prefix. API keys are read directly without that prefix.
+
+## 🗄️ Database Migrations
+
+```bash
+cd backend
+
+# Create migration
+alembic revision --autogenerate -m "describe_change"
+
+# Apply migrations
+alembic upgrade head
+
+# Roll back one migration
+alembic downgrade -1
+```
 
 ---
 

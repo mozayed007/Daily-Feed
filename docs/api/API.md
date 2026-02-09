@@ -236,6 +236,15 @@ GET /users/me/digests?limit=10
 POST /pipeline/{task_type}
 ```
 
+Optional request body:
+```json
+{
+  "params": {
+    "limit": 10
+  }
+}
+```
+
 **Task Types:**
 - `fetch` - Fetch new articles from RSS feeds
 - `process` - Summarize and critique articles

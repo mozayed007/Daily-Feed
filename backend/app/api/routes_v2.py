@@ -277,20 +277,23 @@ async def add_scheduled_job(job_config: Dict[str, Any]):
     """Add a new scheduled job"""
     scheduler = get_scheduler()
     
-    if job_config.get("cron"):
-        job = scheduler.add_cron_job(
-            name=job_config["name"],
-            cron=job_config["cron"],
-            callback=lambda: None,  # Would need to be configured properly
-        )
-    elif job_config.get("interval_seconds"):
-        job = scheduler.add_interval_job(
-            name=job_config["name"],
-            seconds=job_config["interval_seconds"],
-            callback=lambda: None
-        )
-    else:
-        raise HTTPException(status_code=400, detail="Must specify cron or interval_seconds")
+    try:
+        if job_config.get("cron"):
+            job = scheduler.add_cron_job(
+                name=job_config["name"],
+                cron=job_config["cron"],
+                callback=lambda: None,  # Would need to be configured properly
+            )
+        elif job_config.get("interval_seconds"):
+            job = scheduler.add_interval_job(
+                name=job_config["name"],
+                seconds=job_config["interval_seconds"],
+                callback=lambda: None
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Must specify cron or interval_seconds")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     
     return {"success": True, "job_id": job.id}
 

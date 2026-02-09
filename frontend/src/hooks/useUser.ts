@@ -16,15 +16,7 @@ export function useUser() {
   return useQuery({
     queryKey: ['user'],
     queryFn: async () => {
-      // Check for stored user ID
-      const userId = localStorage.getItem('current_user_id');
-      const url = userId ? `/users/me?user_id=${userId}` : '/users/me';
-      const { data } = await api.get<User>(url);
-      
-      // Store ID if not set (first load)
-      if (!userId && data.id) {
-        localStorage.setItem('current_user_id', data.id.toString());
-      }
+      const { data } = await api.get<User>('/users/me');
       return data;
     },
   });
@@ -35,8 +27,10 @@ export function useAllUsers() {
   return useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const { data } = await api.get<User[]>('/users');
-      return data;
+      // Backend currently does not expose a list-users endpoint.
+      // Return current user as a one-item list to keep UI contracts stable.
+      const { data } = await api.get<User>('/users/me');
+      return [data];
     },
   });
 }
@@ -47,13 +41,15 @@ export function useSwitchUser() {
   
   return useMutation({
     mutationFn: async (userId: string) => {
-      const { data } = await api.post<User>(`/users/switch/${userId}`);
-      return data;
+      const users = queryClient.getQueryData<User[]>(['users']) || [];
+      const selected = users.find((u) => u.id === userId);
+      if (!selected) {
+        throw new Error('User switching is not available with the current backend API.');
+      }
+      return selected;
     },
-    onSuccess: (data) => {
-      localStorage.setItem('current_user_id', data.id.toString());
-      queryClient.invalidateQueries(); // Refresh all data for new user
-      window.location.reload(); // Hard reload to ensure clean state
+    onSuccess: () => {
+      queryClient.invalidateQueries();
     },
   });
 }

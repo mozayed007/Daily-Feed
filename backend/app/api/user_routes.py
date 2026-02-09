@@ -275,7 +275,16 @@ async def update_preferences(
     
     # Update fields
     update_data = update.model_dump(exclude_unset=True)
+    allowed_fields = {
+        "topic_interests", "source_preferences", "summary_length",
+        "daily_article_limit", "delivery_time", "timezone",
+        "exclude_topics", "exclude_sources", "language_preference",
+        "include_reading_time", "freshness_preference",
+        "auto_adjust_interests", "diversity_boost"
+    }
     for field, value in update_data.items():
+        if field not in allowed_fields:
+            raise HTTPException(status_code=400, detail=f"Unsupported preference field: {field}")
         setattr(prefs, field, value)
     
     await db.commit()
@@ -433,6 +442,7 @@ async def get_reading_history(
         {
             "id": i.id,
             "article_id": i.article_id,
+            "read_duration_seconds": i.read_duration_seconds,
             "read_duration": i.read_duration_seconds,
             "rating": i.rating,
             "saved": i.saved,

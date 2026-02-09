@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sliders,
@@ -53,13 +53,27 @@ export function Preferences() {
   const updatePreferences = useUpdatePreferences();
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [newBlockedTopic, setNewBlockedTopic] = useState('');
+  const topicUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (topicUpdateTimeoutRef.current) {
+        clearTimeout(topicUpdateTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleInterestChange = (topicId: string, value: number) => {
     const newInterests = {
       ...preferences?.topic_interests,
       [topicId]: value / 100,
     };
-    updatePreferences.mutate({ topic_interests: newInterests });
+    if (topicUpdateTimeoutRef.current) {
+      clearTimeout(topicUpdateTimeoutRef.current);
+    }
+    topicUpdateTimeoutRef.current = setTimeout(() => {
+      updatePreferences.mutate({ topic_interests: newInterests });
+    }, 300);
   };
 
   const handleToggleSource = (sourceId: string) => {

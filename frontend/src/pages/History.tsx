@@ -4,13 +4,23 @@ import { Bookmark, Clock, Calendar, ChevronRight, Filter } from 'lucide-react';
 import { useReadingHistory } from '../hooks/useUser';
 import { useArticles } from '../hooks/useArticles';
 
+interface HistoryItem {
+  id: string;
+  article_id: number;
+  read_duration_seconds?: number;
+  read_duration?: number;
+  rating?: number;
+  saved: boolean;
+  created_at: string;
+}
+
 export function History() {
   const [activeTab, setActiveTab] = useState<'all' | 'saved'>('all');
-  const { data: history } = useReadingHistory(activeTab === 'saved', 50);
-  const { data: articles } = useArticles({ limit: 50 });
+  const { data: history, isLoading: historyLoading, isError: historyError } = useReadingHistory(activeTab === 'saved', 50);
+  const { data: articles, isError: articlesError } = useArticles({ limit: 50 });
 
   // Merge history with article details
-  const historyWithArticles = history?.map((h: any) => ({
+  const historyWithArticles = history?.map((h: HistoryItem) => ({
     ...h,
     article: articles?.articles.find((a) => a.id === h.article_id),
   }));
@@ -50,6 +60,18 @@ export function History() {
 
       {/* History List */}
       <div className="space-y-3">
+        {historyLoading && (
+          <div className="text-center py-10 text-slate-500 dark:text-slate-400">
+            Loading your reading history...
+          </div>
+        )}
+
+        {(historyError || articlesError) && (
+          <div className="text-center py-10 bg-white dark:bg-slate-800 rounded-2xl border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-300">
+            Couldn&apos;t load history right now. Please refresh and try again.
+          </div>
+        )}
+
         {historyWithArticles?.length === 0 && (
           <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 transition-colors">
             <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -64,7 +86,7 @@ export function History() {
           </div>
         )}
 
-        {historyWithArticles?.map((item: any, index: number) => (
+        {!historyLoading && !historyError && historyWithArticles?.map((item: HistoryItem & { article?: { id: number; title?: string; source?: string; category?: string } }, index: number) => (
           <motion.div
             key={item.id}
             initial={{ opacity: 0, y: 20 }}
@@ -98,10 +120,10 @@ export function History() {
 
                 <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
                   <span>{item.article?.source}</span>
-                  {item.read_duration_seconds > 0 && (
+                  {((item.read_duration_seconds ?? item.read_duration ?? 0) > 0) && (
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {Math.round(item.read_duration_seconds / 60)}m read
+                      {Math.round((item.read_duration_seconds ?? item.read_duration ?? 0) / 60)}m read
                     </span>
                   )}
                   {item.rating === 1 && <span className="text-emerald-600">Liked</span>}
