@@ -173,6 +173,11 @@ export function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+      {showDigest && generateDigest.isError && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-300">
+          We couldn&apos;t generate a digest right now. Please try again.
+        </div>
+      )}
 
       {/* Recent Articles */}
       <div>

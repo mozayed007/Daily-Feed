@@ -49,16 +49,20 @@ const FRESHNESS_OPTIONS = [
 ];
 
 export function Preferences() {
-  const { data: preferences, isLoading } = usePreferences();
+  const { data: preferences, isLoading, isError } = usePreferences();
   const updatePreferences = useUpdatePreferences();
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [newBlockedTopic, setNewBlockedTopic] = useState('');
   const topicUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dailyLimitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
       if (topicUpdateTimeoutRef.current) {
         clearTimeout(topicUpdateTimeoutRef.current);
+      }
+      if (dailyLimitTimeoutRef.current) {
+        clearTimeout(dailyLimitTimeoutRef.current);
       }
     };
   }, []);
@@ -84,6 +88,15 @@ export function Preferences() {
     });
   };
 
+  const handleDailyLimitChange = (value: number) => {
+    if (dailyLimitTimeoutRef.current) {
+      clearTimeout(dailyLimitTimeoutRef.current);
+    }
+    dailyLimitTimeoutRef.current = setTimeout(() => {
+      updatePreferences.mutate({ daily_article_limit: value });
+    }, 300);
+  };
+
   const handleAddBlockedTopic = () => {
     if (newBlockedTopic && !preferences?.exclude_topics?.includes(newBlockedTopic)) {
       updatePreferences.mutate({
@@ -103,6 +116,14 @@ export function Preferences() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+
+  if (isError || !preferences) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-300">
+        We couldn&apos;t load your preferences. Please refresh and try again.
       </div>
     );
   }
@@ -320,10 +341,8 @@ export function Preferences() {
                           type="range"
                           min="3"
                           max="20"
-                          value={preferences?.daily_article_limit || 10}
-                          onChange={(e) =>
-                            updatePreferences.mutate({ daily_article_limit: parseInt(e.target.value) })
-                          }
+                          value={preferences.daily_article_limit || 10}
+                          onChange={(e) => handleDailyLimitChange(parseInt(e.target.value))}
                           className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
                         <div className="flex justify-between text-xs text-slate-500 mt-1">

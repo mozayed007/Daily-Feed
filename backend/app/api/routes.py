@@ -347,35 +347,37 @@ async def run_process_pipeline(
     
     processed = 0
     rejected = 0
+    failed: List[int] = []
     
     for article in articles:
         try:
-            async with db.begin_nested():
-                summary = await summarizer.summarize_article(article)
-                critique = await critic.critique(summary, article)
-                
-                if critique.passed:
-                    article.summary = summary.text
-                    article.category = summary.category
-                    article.sentiment = summary.sentiment
-                    article.reading_time = summary.reading_time
-                    article.key_points = summary.key_points
-                    article.is_processed = True
-                    article.critic_score = critique.score
-                    processed += 1
-                else:
-                    rejected += 1
-                    logger.info(f"Article {article.id} rejected by quality critic (score={critique.score})")
-                
+            summary = await summarizer.summarize_article(article)
+            critique = await critic.critique(summary, article)
+
+            if critique.passed:
+                article.summary = summary.text
+                article.category = summary.category
+                article.sentiment = summary.sentiment
+                article.reading_time = summary.reading_time
+                article.key_points = summary.key_points
+                article.is_processed = True
+                article.critic_score = critique.score
+                await db.commit()
+                processed += 1
+            else:
+                rejected += 1
+                logger.info(f"Article {article.id} rejected by quality critic (score={critique.score})")
         except Exception as e:
+            failed.append(article.id)
+            await db.rollback()
             logger.error(f"Error processing article {article.id}: {e}")
-    
-    await db.commit()
     
     return {
         "success": True,
         "processed": processed,
         "rejected": rejected,
+        "failed": len(failed),
+        "failed_article_ids": failed,
         "total": len(articles)
     }
 

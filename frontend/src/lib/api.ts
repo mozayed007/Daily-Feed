@@ -9,26 +9,34 @@ export const api = axios.create({
   },
 });
 
-// Add request interceptor for auth (when you add it)
-// api.interceptors.request.use((config) => {
-//   const token = localStorage.getItem('token');
-//   if (token) {
-//     config.headers.Authorization = `Bearer ${token}`;
-//   }
-//   return config;
-// });
+function normalizeApiErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail;
+    if (typeof detail === 'string' && detail.trim()) {
+      return detail;
+    }
+    if (Array.isArray(detail) && detail.length > 0) {
+      return detail.map((item: any) => item?.msg || String(item)).join(', ');
+    }
+    if (error.code === 'ECONNABORTED') {
+      return 'Request timed out. Please try again.';
+    }
+    if (!error.response) {
+      return 'Unable to reach the API server.';
+    }
+    return error.message || 'Request failed.';
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return 'An unexpected error occurred.';
+}
 
 // Add response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const detail = error.response?.data?.detail;
-    const message =
-      typeof detail === 'string'
-        ? detail
-        : Array.isArray(detail)
-          ? detail.map((item: any) => item?.msg || item).join(', ')
-          : error.message || 'An unexpected error occurred.';
+    const message = normalizeApiErrorMessage(error);
     console.error('API Error:', message);
     
     events.emit('toast', {
@@ -42,6 +50,8 @@ api.interceptors.response.use(
       console.error('Resource not found');
     } else if (error.response?.status === 422) {
       console.error('Validation error:', error.response.data.detail);
+    } else if (error.code === 'ECONNABORTED') {
+      console.error('Request timed out');
     }
     
     return Promise.reject(error);

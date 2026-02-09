@@ -72,13 +72,21 @@ const ENGAGEMENT_DATA = [
 ];
 
 export function Stats() {
-  const { data: stats, isLoading } = useUserStats();
+  const { data: stats, isLoading, isError } = useUserStats();
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("7d");
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+
+  if (isError || !stats) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-300">
+        We couldn&apos;t load analytics right now. Please try again in a moment.
       </div>
     );
   }

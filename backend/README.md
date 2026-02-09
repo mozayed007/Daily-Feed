@@ -70,9 +70,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 - `POST /api/v1/sources/{id}/fetch` - Fetch from source
 
 ### Pipeline
-- `POST /api/v1/pipeline/fetch` - Run fetch pipeline
-- `POST /api/v1/pipeline/process` - Run AI processing pipeline
-- `POST /api/v1/pipeline/digest` - Create digest
+- `POST /api/v1/pipeline/{task_type}` - Run pipeline task via agent loop (`fetch`, `process`, `digest`, `full`, `memory_sync`)
 
 ### Digests
 - `GET /api/v1/digests` - List digests
@@ -90,14 +88,16 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 backend/
 ├── app/
 │   ├── __init__.py
-│   ├── config.py          # Configuration management
+│   ├── config.py          # Legacy/BaseSettings config (for older modules)
 │   ├── database.py        # Database models and operations
-│   ├── main.py            # FastAPI application
 │   ├── api/
 │   │   ├── __init__.py
-│   │   └── routes.py      # API endpoints
+│   │   ├── routes.py      # Legacy routes
+│   │   ├── routes_v2.py   # Active API routes
+│   │   └── user_routes.py # User/personalization routes
 │   ├── core/
 │   │   ├── __init__.py
+│   │   ├── config_manager.py # Active runtime config
 │   │   └── llm_client.py  # LLM client implementations
 │   └── agents/
 │       ├── __init__.py
@@ -107,6 +107,7 @@ backend/
 │       └── delivery.py    # Delivery Agent
 ├── data/                  # SQLite database
 ├── requirements.txt
+├── main.py                # FastAPI entrypoint
 ├── .env.example
 └── README.md
 ```
@@ -121,6 +122,10 @@ backend/
 | `DAILYFEED_TELEGRAM_BOT_TOKEN` | Telegram bot token | - |
 | `DAILYFEED_TELEGRAM_CHAT_ID` | Telegram chat ID | - |
 | `DAILYFEED_DATABASE_URL` | Database connection string | sqlite+aiosqlite:///data/dailyfeed.db |
+| `OPENAI_API_KEY` | OpenAI API key (unprefixed) | - |
+| `ANTHROPIC_API_KEY` | Anthropic API key (unprefixed) | - |
+
+Most runtime options are read via `DAILYFEED_`-prefixed variables in `app/core/config_manager.py`. API keys for external providers are intentionally unprefixed.
 
 ## Architecture
 

@@ -11,10 +11,13 @@ import type {
   UserInteractionResponse
 } from '../types/api';
 
+const USER_QUERY_KEY = ['user'] as const;
+const USER_PREFS_QUERY_KEY = ['preferences'] as const;
+
 // Get current user
 export function useUser() {
   return useQuery({
-    queryKey: ['user'],
+    queryKey: USER_QUERY_KEY,
     queryFn: async () => {
       const { data } = await api.get<User>('/users/me');
       return data;
@@ -22,42 +25,10 @@ export function useUser() {
   });
 }
 
-// Get all users (for switching)
-export function useAllUsers() {
-  return useQuery({
-    queryKey: ['users'],
-    queryFn: async () => {
-      // Backend currently does not expose a list-users endpoint.
-      // Return current user as a one-item list to keep UI contracts stable.
-      const { data } = await api.get<User>('/users/me');
-      return [data];
-    },
-  });
-}
-
-// Switch user
-export function useSwitchUser() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (userId: string) => {
-      const users = queryClient.getQueryData<User[]>(['users']) || [];
-      const selected = users.find((u) => u.id === userId);
-      if (!selected) {
-        throw new Error('User switching is not available with the current backend API.');
-      }
-      return selected;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries();
-    },
-  });
-}
-
 // Get user stats
 export function useUserStats() {
   return useQuery({
-    queryKey: ['user', 'stats'],
+    queryKey: [...USER_QUERY_KEY, 'stats'],
     queryFn: async () => {
       const { data } = await api.get<UserStats>('/users/me/stats');
       return data;
@@ -75,7 +46,8 @@ export function useOnboarding() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: USER_PREFS_QUERY_KEY });
     },
   });
 }
@@ -83,7 +55,7 @@ export function useOnboarding() {
 // Get preferences
 export function usePreferences() {
   return useQuery({
-    queryKey: ['preferences'],
+    queryKey: USER_PREFS_QUERY_KEY,
     queryFn: async () => {
       const { data } = await api.get<UserPreferencesResponse>('/users/me/preferences');
       return data;
@@ -101,7 +73,7 @@ export function useUpdatePreferences() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['preferences'] });
+      queryClient.invalidateQueries({ queryKey: USER_PREFS_QUERY_KEY });
     },
   });
 }

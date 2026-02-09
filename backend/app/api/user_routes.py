@@ -23,6 +23,28 @@ router = APIRouter(prefix="/users", tags=["users"])
 logger = get_logger(__name__)
 
 
+async def _get_or_create_poc_user(db: AsyncSession) -> UserModel:
+    """Get first user for PoC mode, creating one if missing."""
+    result = await db.execute(select(UserModel).limit(1))
+    user = result.scalar_one_or_none()
+    if user:
+        return user
+
+    user = UserModel(
+        email=f"user_{datetime.now(timezone.utc).timestamp()}@local",
+        name="Daily Feed User",
+    )
+    db.add(user)
+    await db.flush()
+
+    db.add(UserPreferencesModel(user_id=user.id))
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info("poc_user_bootstrapped", user_id=user.id)
+    return user
+
+
 # ========== User Management ==========
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -60,24 +82,14 @@ async def get_current_user(db: AsyncSession = Depends(get_db)):
     
     For PoC, returns the first user. In production, use auth.
     """
-    result = await db.execute(select(UserModel).limit(1))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="No user found")
-    
+    user = await _get_or_create_poc_user(db)
     return user
 
 
 @router.get("/me/stats", response_model=UserStats)
 async def get_user_stats(db: AsyncSession = Depends(get_db)):
     """Get user engagement statistics."""
-    # Get user
-    result = await db.execute(select(UserModel).limit(1))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="No user found")
+    user = await _get_or_create_poc_user(db)
     
     # Total articles read (read_duration > 30s)
     result = await db.execute(
@@ -168,32 +180,23 @@ async def get_user_stats(db: AsyncSession = Depends(get_db)):
 @router.post("/onboarding", response_model=UserResponse)
 async def complete_onboarding(data: OnboardingData, db: AsyncSession = Depends(get_db)):
     """Complete user onboarding and set initial preferences."""
-    # Get or create user
-    result = await db.execute(select(UserModel).limit(1))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        # Create new user
-        user = UserModel(
-            email=f"user_{datetime.now(timezone.utc).timestamp()}@local",
-            name=data.name
+    if not data.name.strip():
+        raise HTTPException(status_code=400, detail="Name cannot be empty")
+    if not data.interests:
+        raise HTTPException(status_code=400, detail="At least one interest is required")
+    if not data.preferred_sources:
+        raise HTTPException(status_code=400, detail="At least one preferred source is required")
+
+    user = await _get_or_create_poc_user(db)
+    prefs_result = await db.execute(
+        select(UserPreferencesModel).where(
+            UserPreferencesModel.user_id == user.id
         )
-        db.add(user)
-        await db.flush()
-        
+    )
+    prefs = prefs_result.scalar_one_or_none()
+    if not prefs:
         prefs = UserPreferencesModel(user_id=user.id)
         db.add(prefs)
-    else:
-        # Update existing user
-        prefs_result = await db.execute(
-            select(UserPreferencesModel).where(
-                UserPreferencesModel.user_id == user.id
-            )
-        )
-        prefs = prefs_result.scalar_one_or_none()
-        if not prefs:
-            prefs = UserPreferencesModel(user_id=user.id)
-            db.add(prefs)
     
     # Set initial topic interests
     topic_interests = {}
@@ -213,7 +216,7 @@ async def complete_onboarding(data: OnboardingData, db: AsyncSession = Depends(g
     prefs.daily_article_limit = data.daily_limit
     
     # Mark onboarding complete
-    user.name = data.name
+    user.name = data.name.strip()
     user.onboarding_completed = True
     
     await db.commit()
@@ -233,11 +236,7 @@ async def complete_onboarding(data: OnboardingData, db: AsyncSession = Depends(g
 @router.get("/me/preferences", response_model=UserPreferencesResponse)
 async def get_preferences(db: AsyncSession = Depends(get_db)):
     """Get user preferences."""
-    result = await db.execute(select(UserModel).limit(1))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="No user found")
+    user = await _get_or_create_poc_user(db)
     
     prefs_result = await db.execute(
         select(UserPreferencesModel).where(UserPreferencesModel.user_id == user.id)
@@ -259,11 +258,7 @@ async def update_preferences(
     db: AsyncSession = Depends(get_db)
 ):
     """Update user preferences."""
-    result = await db.execute(select(UserModel).limit(1))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="No user found")
+    user = await _get_or_create_poc_user(db)
     
     prefs_result = await db.execute(
         select(UserPreferencesModel).where(UserPreferencesModel.user_id == user.id)
@@ -271,10 +266,14 @@ async def update_preferences(
     prefs = prefs_result.scalar_one_or_none()
     
     if not prefs:
-        raise HTTPException(status_code=404, detail="Preferences not found")
+        prefs = UserPreferencesModel(user_id=user.id)
+        db.add(prefs)
     
     # Update fields
     update_data = update.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No preference fields provided")
+
     allowed_fields = {
         "topic_interests", "source_preferences", "summary_length",
         "daily_article_limit", "delivery_time", "timezone",
@@ -285,6 +284,10 @@ async def update_preferences(
     for field, value in update_data.items():
         if field not in allowed_fields:
             raise HTTPException(status_code=400, detail=f"Unsupported preference field: {field}")
+        if field in {"topic_interests", "source_preferences"} and value is not None and len(value) > 200:
+            raise HTTPException(status_code=400, detail=f"{field} exceeds maximum supported size")
+        if field in {"exclude_topics", "exclude_sources"} and value is not None and len(value) > 200:
+            raise HTTPException(status_code=400, detail=f"{field} exceeds maximum supported size")
         setattr(prefs, field, value)
     
     await db.commit()
@@ -303,11 +306,7 @@ async def record_interaction(
     db: AsyncSession = Depends(get_db)
 ):
     """Record user interaction with an article."""
-    result = await db.execute(select(UserModel).limit(1))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="No user found")
+    user = await _get_or_create_poc_user(db)
     
     # Check if interaction exists
     result = await db.execute(
@@ -361,11 +360,7 @@ async def submit_feedback(
     db: AsyncSession = Depends(get_db)
 ):
     """Submit simple feedback for an article."""
-    result = await db.execute(select(UserModel).limit(1))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="No user found")
+    user = await _get_or_create_poc_user(db)
     
     # Map feedback strings to interaction fields
     feedback_map = {
@@ -422,11 +417,7 @@ async def get_reading_history(
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's reading history."""
-    result = await db.execute(select(UserModel).limit(1))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="No user found")
+    user = await _get_or_create_poc_user(db)
     
     query = select(UserInteractionModel).where(
         UserInteractionModel.user_id == user.id
@@ -496,11 +487,7 @@ async def _update_user_model(
 @router.post("/me/digest/generate", response_model=PersonalizedDigestResponse)
 async def generate_personalized_digest(db: AsyncSession = Depends(get_db)):
     """Generate a personalized digest for the current user."""
-    result = await db.execute(select(UserModel).limit(1))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="No user found")
+    user = await _get_or_create_poc_user(db)
     
     # Get user preferences
     prefs_result = await db.execute(
@@ -509,7 +496,10 @@ async def generate_personalized_digest(db: AsyncSession = Depends(get_db)):
     prefs = prefs_result.scalar_one_or_none()
     
     if not prefs:
-        raise HTTPException(status_code=404, detail="User preferences not found")
+        prefs = UserPreferencesModel(user_id=user.id)
+        db.add(prefs)
+        await db.commit()
+        await db.refresh(prefs)
     
     # Get recent unprocessed articles
     cutoff = datetime.now(timezone.utc) - timedelta(days=7)
@@ -610,11 +600,7 @@ async def get_user_digests(
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's personalized digests."""
-    result = await db.execute(select(UserModel).limit(1))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="No user found")
+    user = await _get_or_create_poc_user(db)
     
     result = await db.execute(
         select(PersonalizedDigestModel)

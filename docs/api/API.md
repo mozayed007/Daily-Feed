@@ -43,14 +43,14 @@ Authorization: Bearer <token>
 
 ### List Articles
 ```http
-GET /articles?skip=0&limit=20&processed=true&category=AI
+GET /articles?page=1&page_size=20&processed=true&category=AI
 ```
 
 **Query Parameters:**
 | Param | Type | Description |
 |-------|------|-------------|
-| skip | int | Pagination offset |
-| limit | int | Items per page (max 100) |
+| page | int | 1-based page number |
+| page_size | int | Items per page (max 100) |
 | processed | bool | Filter by processed status |
 | category | string | Filter by category |
 | source | string | Filter by source |
@@ -122,6 +122,10 @@ POST /users
 ```http
 GET /users/me
 ```
+
+Notes:
+- PoC mode resolves to the first available user.
+- There is currently no `/users/switch/{id}` endpoint.
 
 ### Complete Onboarding
 ```http
@@ -360,7 +364,7 @@ GET /stats
 {
   "total_articles": 1250,
   "processed_articles": 980,
-  "pending_articles": 270,
+  "unprocessed_articles": 270,
   "total_sources": 7,
   "active_sources": 7,
   "total_digests": 45,
@@ -392,7 +396,8 @@ GET /health
 {
   "status": "healthy",
   "version": "1.1.0",
-  "timestamp": "2026-02-04T20:30:00Z"
+  "tools_available": ["fetch_articles", "summarize_article"],
+  "scheduler_running": true
 }
 ```
 
