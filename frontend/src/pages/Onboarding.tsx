@@ -49,7 +49,7 @@ export function Onboarding() {
     name: '',
     interests: [] as string[],
     sources: [] as string[],
-    summaryLength: 'medium',
+    summaryLength: 'medium' as 'short' | 'medium' | 'long',
     deliveryTime: '08:00',
     dailyLimit: 10,
   });
@@ -307,7 +307,12 @@ export function Onboarding() {
                       {SUMMARY_LENGTHS.map((length) => (
                         <button
                           key={length.id}
-                          onClick={() => setFormData({ ...formData, summaryLength: length.id })}
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              summaryLength: length.id as 'short' | 'medium' | 'long',
+                            })
+                          }
                           className={`p-4 rounded-xl border-2 text-center transition-all ${
                             formData.summaryLength === length.id
                               ? 'border-blue-500 bg-blue-50'
@@ -361,6 +366,11 @@ export function Onboarding() {
 
           {/* Footer */}
           <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+            {onboarding.isError && (
+              <p className="text-sm text-rose-600">
+                We couldn&apos;t save onboarding right now. Please try again.
+              </p>
+            )}
             <button
               onClick={handleBack}
               disabled={step === 0}

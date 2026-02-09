@@ -192,8 +192,7 @@ GET  /api/v1/articles                  # List articles (with filters)
 GET  /api/v1/articles/{id}             # Get article
 POST /api/v1/articles/{id}/summarize   # Summarize article
 GET  /api/v1/sources                   # List sources
-POST /api/v1/sources/fetch             # Trigger fetch
-POST /api/v1/pipeline/{task}           # Run pipeline (fetch/process/digest)
+POST /api/v1/pipeline/{task_type}      # Run pipeline (fetch/process/digest/full/memory_sync)
 ```
 
 ### Personalization Endpoints
