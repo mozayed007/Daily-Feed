@@ -237,6 +237,43 @@ class UserPreferencesUpdate(BaseModel):
             raise ValueError(f'freshness_preference must be one of {valid}')
         return v
 
+    @field_validator('topic_interests', 'source_preferences')
+    @classmethod
+    def validate_weight_maps(cls, v: Optional[Dict[str, float]]) -> Optional[Dict[str, float]]:
+        """Validate preference maps contain safe keys and 0-1 values."""
+        if v is None:
+            return v
+
+        cleaned: Dict[str, float] = {}
+        for key, weight in v.items():
+            safe_key = key.strip()
+            if not safe_key:
+                raise ValueError("Preference keys cannot be empty")
+            if len(safe_key) > 100:
+                raise ValueError("Preference keys must be <= 100 characters")
+            if weight < 0.0 or weight > 1.0:
+                raise ValueError("Preference values must be between 0 and 1")
+            cleaned[safe_key] = float(weight)
+        return cleaned
+
+    @field_validator('exclude_topics', 'exclude_sources')
+    @classmethod
+    def validate_exclude_lists(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate and normalize exclude lists."""
+        if v is None:
+            return v
+
+        cleaned: List[str] = []
+        for item in v:
+            value = item.strip()
+            if not value:
+                continue
+            if len(value) > 100:
+                raise ValueError("Excluded value must be <= 100 characters")
+            if value not in cleaned:
+                cleaned.append(value)
+        return cleaned
+
 
 class UserPreferencesResponse(BaseModel):
     """User preferences response."""
@@ -314,7 +351,38 @@ class OnboardingData(BaseModel):
     preferred_sources: List[str]
     summary_length: str = "medium"
     delivery_time: str = "08:00"
-    daily_limit: int = 10
+    daily_limit: int = Field(default=10, ge=1, le=50)
+
+    @field_validator("summary_length")
+    @classmethod
+    def validate_onboarding_summary_length(cls, v: str) -> str:
+        valid = {"short", "medium", "long"}
+        if v not in valid:
+            raise ValueError(f"summary_length must be one of {sorted(valid)}")
+        return v
+
+    @field_validator("delivery_time")
+    @classmethod
+    def validate_onboarding_delivery_time(cls, v: str) -> str:
+        try:
+            datetime.strptime(v, "%H:%M")
+        except ValueError as exc:
+            raise ValueError("delivery_time must be in HH:MM format") from exc
+        return v
+
+    @field_validator("interests", "preferred_sources")
+    @classmethod
+    def validate_onboarding_lists(cls, v: List[str]) -> List[str]:
+        cleaned: List[str] = []
+        for item in v:
+            value = item.strip()
+            if not value:
+                continue
+            if len(value) > 100:
+                raise ValueError("Values must be <= 100 characters")
+            if value not in cleaned:
+                cleaned.append(value)
+        return cleaned
 
 
 class UserStats(BaseModel):

@@ -3,6 +3,7 @@ import { events } from './events';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -21,7 +22,13 @@ export const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.detail || error.message;
+    const detail = error.response?.data?.detail;
+    const message =
+      typeof detail === 'string'
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((item: any) => item?.msg || item).join(', ')
+          : error.message || 'An unexpected error occurred.';
     console.error('API Error:', message);
     
     events.emit('toast', {

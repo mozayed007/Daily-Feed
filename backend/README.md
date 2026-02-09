@@ -16,7 +16,7 @@ FastAPI-based backend for local news aggregation with LLM-powered summarization.
 ### 1. Install Dependencies
 
 ```bash
-cd back
+cd backend
 pip install -r requirements.txt
 ```
 
@@ -87,7 +87,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ## Project Structure
 
 ```
-back/
+backend/
 ├── app/
 │   ├── __init__.py
 │   ├── config.py          # Configuration management
@@ -115,12 +115,12 @@ back/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `LLM_PROVIDER` | LLM provider (ollama/openai/anthropic) | ollama |
-| `OLLAMA_URL` | Ollama server URL | http://localhost:11434 |
-| `OLLAMA_MODEL` | Model to use | llama3.2 |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token | - |
-| `TELEGRAM_CHAT_ID` | Telegram chat ID | - |
-| `DATABASE_URL` | Database connection string | sqlite+aiosqlite:///data/dailyfeed.db |
+| `DAILYFEED_LLM_PROVIDER` | LLM provider (ollama/openai/anthropic) | ollama |
+| `DAILYFEED_OLLAMA_URL` | Ollama server URL | http://localhost:11434 |
+| `DAILYFEED_OLLAMA_MODEL` | Model to use | llama3.2 |
+| `DAILYFEED_TELEGRAM_BOT_TOKEN` | Telegram bot token | - |
+| `DAILYFEED_TELEGRAM_CHAT_ID` | Telegram chat ID | - |
+| `DAILYFEED_DATABASE_URL` | Database connection string | sqlite+aiosqlite:///data/dailyfeed.db |
 
 ## Architecture
 

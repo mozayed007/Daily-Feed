@@ -426,7 +426,7 @@ Backend CORS is configured for:
 - `http://localhost:3000` (Create React App)
 - `http://localhost:5173` (Vite)
 
-If using a different port, add it in `back/app/core/config_manager.py`:
+If using a different port, add it in `backend/app/core/config_manager.py`:
 ```python
 cors_origins: List[str] = field(default_factory=lambda: [
     "http://localhost:3000",
@@ -480,8 +480,8 @@ app.mount("/", StaticFiles(directory="../front/dist", html=True))
 ## 🆘 Getting Help
 
 - API Docs: `http://localhost:8000/docs`
-- Backend README: `back/README.md`
+- Backend README: `backend/README.md`
 - API Types: `docs/API_TYPES.ts`
-- Full API Reference: `docs/API.md`
+- Full API Reference: `docs/api/API.md`
 
 Happy coding! 🎉

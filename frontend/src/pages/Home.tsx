@@ -15,12 +15,12 @@ import {
 } from 'lucide-react';
 import { useArticles, useGenerateDigest, useArticleFeedback } from '../hooks/useArticles';
 import { useUserStats } from '../hooks/useUser';
-import type { PersonalizedArticle } from '../types/api';
+import type { Article, PersonalizedArticle } from '../types/api';
 
 export function Home() {
   const [showDigest, setShowDigest] = useState(false);
-  const { data: articles, isLoading: articlesLoading } = useArticles({ limit: 10 });
-  const { data: stats } = useUserStats();
+  const { data: articles, isLoading: articlesLoading, isError: articlesError } = useArticles({ limit: 10 });
+  const { data: stats, isError: statsError } = useUserStats();
   const generateDigest = useGenerateDigest();
   const feedback = useArticleFeedback();
 
@@ -193,6 +193,14 @@ export function Home() {
               </div>
             ))}
           </div>
+        ) : articlesError || statsError ? (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-300">
+            We couldn&apos;t load your feed right now. Please try again in a moment.
+          </div>
+        ) : !articles?.articles?.length ? (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+            No articles are available yet. Try running a fetch/process pipeline first.
+          </div>
         ) : (
           <div className="space-y-4">
             {articles?.articles.map((article, index) => (
@@ -211,7 +219,7 @@ export function Home() {
 }
 
 interface ArticleCardProps {
-  article: any;
+  article: Article | PersonalizedArticle;
   index: number;
   onFeedback: (articleId: number, type: 'like' | 'dislike' | 'save') => void;
 }
