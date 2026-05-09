@@ -446,7 +446,7 @@ Docs:        5 comprehensive guides
 | `OPENAI_API_KEY`         | OpenAI API key                                | -                                     |
 | `ANTHROPIC_API_KEY`      | Anthropic API key                             | -                                     |
 | `GEMINI_API_KEY`         | Google Gemini API key                         | -                                     |
-| `GEMINI_MODEL`           | Gemini model name                             | `gemma-4-31b-it`                      |
+| `GEMINI_MODEL`           | Gemini model name                             | `gemini-3.1-flash-lite`               |
 | `FIREWORKS_API_KEY`      | Fireworks AI API key                          | -                                     |
 | `FIREWORKS_MODEL`        | Fireworks model name                          | `accounts/fireworks/routers/kimi-k2p6-turbo` |
 | `FIREWORKS_BASE_URL`     | Fireworks API base URL                        | `https://api.fireworks.ai/inference/v1` |

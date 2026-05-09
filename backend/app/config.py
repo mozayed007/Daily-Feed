@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     ANTHROPIC_MODEL: str = "claude-3-haiku-20240307"
 
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemma-4-31b-it"
+    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     # OpenAI-compatible Gemini endpoint
     GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
