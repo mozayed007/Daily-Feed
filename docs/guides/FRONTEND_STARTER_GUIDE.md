@@ -108,51 +108,109 @@ api.interceptors.response.use((response) => response, (error) => {
 });
 ```
 
-### 5. Create Query Client
+### 5. Configure API Client with Auth & Error Handling
 
-Create `src/lib/queryClient.ts`:
+The project already provides `src/lib/api.ts` with JWT interceptors, token refresh, and error normalization. Copy it as-is or adapt:
 
 ```typescript
-import { QueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 2,
-    },
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
   },
 });
+
+// Request interceptor: attach Bearer token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor: refresh on 401
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (refreshToken) {
+        try {
+          const res = await axios.post('/auth/refresh', { refresh_token: refreshToken });
+          const { access_token, refresh_token } = res.data;
+          localStorage.setItem('access_token', access_token);
+          localStorage.setItem('refresh_token', refresh_token);
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          return api(originalRequest);
+        } catch {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 ```
 
 ---
 
-## 📁 Recommended Folder Structure
+## 📁 Current Project Folder Structure
+
+The existing frontend already follows this layout:
 
 ```
 src/
-├── components/           # Reusable UI components
-│   ├── ui/              # Buttons, inputs, cards
-│   ├── articles/        # Article card, article list
-│   ├── digest/          # Digest view, digest list
-│   └── preferences/     # Preference forms
+├── components/          # Reusable UI components
+│   ├── ConfirmDialog.tsx
+│   ├── EmptyState.tsx
+│   ├── ErrorBoundary.tsx
+│   ├── ErrorDisplay.tsx
+│   ├── Layout.tsx
+│   ├── Skeleton.tsx
+│   ├── ThemeToggle.tsx
+│   └── Toast.tsx
+├── contexts/            # React contexts
+│   └── AuthContext.tsx
 ├── hooks/               # Custom React hooks
+│   ├── useAI.ts         # Cluster, synthesize, trends, reasoning
 │   ├── useArticles.ts
-│   ├── useDigest.ts
-│   ├── usePreferences.ts
+│   ├── useCategories.ts
+│   ├── useScheduler.ts
+│   ├── useSources.ts
+│   ├── useTheme.tsx
 │   └── useUser.ts
 ├── lib/                 # Utilities
-│   ├── api.ts          # Axios instance
-│   ├── queryClient.ts  # React Query setup
-│   └── utils.ts        # Helper functions
+│   ├── api.ts           # Axios instance + JWT interceptors + error normalization
+│   ├── auth.ts          # Token helpers
+│   └── events.ts        # Event emitter for toasts
 ├── pages/               # Page components
+│   ├── ArticleDetail.tsx
+│   ├── ForgotPassword.tsx
+│   ├── History.tsx
 │   ├── Home.tsx
-│   ├── Digest.tsx
+│   ├── Login.tsx
+│   ├── NotFound.tsx
+│   ├── OAuthCallback.tsx
+│   ├── Onboarding.tsx
 │   ├── Preferences.tsx
-│   └── Onboarding.tsx
+│   ├── Profile.tsx
+│   ├── Register.tsx
+│   ├── ResetPassword.tsx
+│   ├── Scheduler.tsx
+│   ├── Stats.tsx
+│   ├── Trends.tsx
+│   └── VoiceCompanion.tsx
 ├── types/               # TypeScript types
-│   └── api.ts          # From docs/API_TYPES.ts
-└── App.tsx
+│   └── api.ts           # Auto-synced from docs/api/API_TYPES.ts
+└── App.tsx              # Router with auth guards, onboarding gate, theme provider
 ```
 
 ---
@@ -171,7 +229,7 @@ curl -X POST http://localhost:8000/api/v1/users/me/digest/generate
 
 ### Get Articles
 ```bash
-curl http://localhost:8000/api/v1/articles?limit=5
+curl http://localhost:8000/api/v1/articles?page=1&page_size=5
 ```
 
 ---
@@ -247,64 +305,68 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import type { ArticleListResponse } from '../types/api';
 
-export function useArticles(limit = 20) {
+export function useArticles(filters?: { processed?: boolean; category?: string; source?: string; page?: number; page_size?: number }) {
   return useQuery({
-    queryKey: ['articles', limit],
+    queryKey: ['articles', filters],
     queryFn: async () => {
-      const { data } = await api.get<ArticleListResponse>(
-        `/articles?limit=${limit}`
-      );
+      const { data } = await api.get<ArticleListResponse>('/articles', { params: filters });
       return data;
     },
   });
 }
 ```
 
-### usePersonalizedDigest.ts
+### useUser.ts
+
+```typescript
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { api } from '../lib/api';
+import type { User, UserPreferences } from '../types/api';
+
+export function useCurrentUser() {
+  return useQuery({
+    queryKey: ['user', 'me'],
+    queryFn: async () => {
+      const { data } = await api.get<User>('/users/me');
+      return data;
+    },
+  });
+}
+
+export function useUpdatePreferences() {
+  return useMutation({
+    mutationFn: async (prefs: Partial<UserPreferences>) => {
+      const { data } = await api.patch('/users/me/preferences', prefs);
+      return data;
+    },
+  });
+}
+```
+
+### useAI.ts
 
 ```typescript
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import type { PersonalizedDigest } from '../types/api';
+import type { ClusterResponse, TrendsResponse } from '../types/api';
 
-export function useGenerateDigest() {
+export function useClusterArticles() {
   return useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post<PersonalizedDigest>(
-        '/users/me/digest/generate'
-      );
+    mutationFn: async (articleIds: number[]) => {
+      const { data } = await api.post<ClusterResponse>('/articles/cluster', { article_ids: articleIds });
       return data;
     },
   });
 }
-```
 
-### useFeedback.ts
-
-```typescript
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../lib/api';
-
-export function useArticleFeedback() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ 
-      articleId, 
-      feedback 
-    }: { 
-      articleId: number; 
-      feedback: string 
-    }) => {
-      await api.post('/users/me/feedback', {
-        article_id: articleId,
-        feedback,
-      });
+export function useDetectTrends(articleIds?: number[]) {
+  return useQuery({
+    queryKey: ['trends', articleIds],
+    queryFn: async () => {
+      const { data } = await api.get<TrendsResponse>('/articles/trends', { params: { article_ids: articleIds } });
+      return data;
     },
-    onSuccess: () => {
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['articles'] });
-    },
+    enabled: false, // manual trigger only
   });
 }
 ```

@@ -247,25 +247,71 @@ User dismisses → Weak -signal
 
 ## 🚀 Implementation Phases
 
-### Phase 1: Foundation (Week 1)
-- [ ] User model & authentication
-- [ ] Preferences schema & storage
-- [ ] Basic API endpoints for user management
+### Phase 1: Foundation
+- [x] User model & authentication (JWT with refresh tokens)
+- [x] Preferences schema & storage (SQLAlchemy + Pydantic)
+- [x] Basic API endpoints for user management (FastAPI routers)
 
-### Phase 2: Personalization Engine (Week 2)
-- [ ] Article scoring algorithm
-- [ ] Topic extraction from articles
-- [ ] User interest inference
+### Phase 2: Personalization Engine
+- [x] Article scoring algorithm (`PersonalizationEngine` in `app/core/personalization.py`)
+- [x] Topic extraction from articles (pydantic-ai `summarize_agent` with `category` field)
+- [x] User interest inference (implicit from read time + explicit from feedback)
 
-### Phase 3: Learning Loop (Week 3)
-- [ ] Interaction tracking
-- [ ] Preference updates from feedback
-- [ ] A/B testing framework
+### Phase 3: Learning Loop
+- [x] Interaction tracking (`UserInteractionModel` + `POST /users/me/interactions`)
+- [x] Preference updates from feedback (`UserModelTrainer` in `app/core/personalization.py`)
+- [ ] A/B testing framework (architecture placeholder, not yet implemented)
 
-### Phase 4: User Experience (Week 4)
-- [ ] Onboarding flow
-- [ ] User dashboard
-- [ ] Feedback UI (thumbs, save, share)
+### Phase 4: User Experience
+- [x] Onboarding flow (`frontend/src/pages/Onboarding.tsx`)
+- [x] User dashboard (`frontend/src/pages/Stats.tsx`)
+- [x] Feedback UI (thumbs, save, share, dismiss in `ArticleCard`)
+
+---
+
+## 🤖 AI Agent & Graph Architecture
+
+The personalization pipeline is now powered by pydantic-ai agents and pydantic-graph workflows.
+
+### Pydantic-AI Agents
+
+| Agent | Purpose | Output Schema |
+|-------|---------|-------------|
+| `summarize_agent` | Summarize articles with structured output | `SummaryResult` (summary, category, sentiment, key_points, reading_time) |
+| `critique_agent` | Evaluate summary quality | `CritiqueResult` (accuracy, completeness, clarity, bias, overall_score) |
+| `cluster_agent` | Group articles by topic | `ClusterList` (list of `ArticleCluster` with topic, confidence, article_ids) |
+| `synthesize_agent` | Merge multi-source coverage | `MultiSourceSynthesis` (consensus, conflicts, unique_perspectives) |
+| `digest_reason_agent` | Explain why article is relevant | `DigestReasoning` (inclusion_reason, relevance_score, key_insight) |
+| `trend_agent` | Detect emerging trends | `TrendList` (list of `TrendResult` with direction, urgency) |
+
+### Pydantic-Graph Workflows
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│              ARTICLE PROCESSING GRAPH                         │
+├──────────────────────────────────────────────────────────────┤
+│  fetch_unprocessed → [summarize] → [critique] → [remember]   │
+│                            (parallel map per article)        │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│              DIGEST GENERATION GRAPH                          │
+├──────────────────────────────────────────────────────────────┤
+│  fetch_recent → cluster → [synthesize_cluster] → build_digest│
+│                              (parallel map per cluster)        │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│              FULL PIPELINE GRAPH                              │
+├──────────────────────────────────────────────────────────────┤
+│  run_fetch → run_process (ArticleProcessingGraph)             │
+│       → run_digest (DigestGenerationGraph)                    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### LiteLLM Integration
+
+All agents use `LiteLLMModel` via `pydantic-ai-litellm`, enabling routing to 100+ providers (Ollama, OpenAI, Anthropic, Gemini, Groq, etc.) through a single interface. Provider selection is controlled by `LLM_PROVIDER` env var.
 
 ---
 
