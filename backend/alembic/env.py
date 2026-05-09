@@ -13,9 +13,26 @@ from alembic import context
 import sys
 sys.path.append(".")
 from app.database import Base
+from app.config import get_settings
 
 # this is the Alembic Config object
 config = context.config
+settings = get_settings()
+
+
+def _get_alembic_database_url() -> str:
+    """Return a sync SQLAlchemy URL compatible with Alembic."""
+    db_url = settings.DATABASE_URL
+
+    if db_url.startswith("sqlite+aiosqlite://"):
+        return db_url.replace("sqlite+aiosqlite://", "sqlite://", 1)
+    if "+asyncpg" in db_url:
+        return db_url.replace("+asyncpg", "", 1)
+
+    return db_url
+
+
+config.set_main_option("sqlalchemy.url", _get_alembic_database_url())
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

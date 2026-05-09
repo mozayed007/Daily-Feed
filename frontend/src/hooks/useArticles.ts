@@ -36,7 +36,7 @@ export function useArticles(params: ArticleFilterParams = {}) {
 }
 
 // Get single article
-export function useArticle(id: number) {
+export function useArticle(id: string | number) {
   return useQuery({
     queryKey: ['article', id],
     queryFn: async () => {
@@ -62,9 +62,9 @@ export function useArticleFeedback() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ articleId, feedback }: ArticleFeedbackRequest) => {
+    mutationFn: async ({ article_id, feedback }: ArticleFeedbackRequest) => {
       await api.post('/users/me/feedback', {
-        article_id: articleId,
+        article_id,
         feedback,
       });
     },
@@ -73,6 +73,20 @@ export function useArticleFeedback() {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
       queryClient.invalidateQueries({ queryKey: ['digest'] });
     },
+  });
+}
+
+// Search articles
+export function useSearchArticles(query: string) {
+  return useQuery({
+    queryKey: ['articles', 'search', query],
+    queryFn: async () => {
+      const { data } = await api.get<{ query: string; articles: ArticleListResponse['articles']; total: number }>(
+        `/articles/search?q=${encodeURIComponent(query)}`
+      );
+      return data;
+    },
+    enabled: query.trim().length > 0,
   });
 }
 

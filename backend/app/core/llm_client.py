@@ -174,12 +174,18 @@ class OpenAIClient(BaseLLMClient):
                 temperature=temperature,
                 max_tokens=max_tokens
             )
+            choice = response.choices[0] if response.choices else None
+            text = (
+                choice.message.content
+                if choice and choice.message and choice.message.content is not None
+                else ""
+            )
             
             return LLMResponse(
-                text=response.choices[0].message.content,
+                text=text,
                 model=self.model,
                 tokens_used=response.usage.total_tokens if response.usage else None,
-                finish_reason=response.choices[0].finish_reason
+                finish_reason=choice.finish_reason if choice else None
             )
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
@@ -223,12 +229,65 @@ class AnthropicClient(BaseLLMClient):
             )
             
             return LLMResponse(
-                text=response.content[0].text,
+                text=response.content[0].text if response.content else "",
                 model=self.model,
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens if response.usage else None
             )
         except Exception as e:
             logger.error(f"Anthropic API error: {e}")
+            raise
+
+
+class GeminiClient(BaseLLMClient):
+    """Google Gemini client via OpenAI-compatible API."""
+
+    def __init__(self, api_key: str = None, model: str = None, base_url: str = None):
+        self.api_key = api_key or settings.GEMINI_API_KEY
+        self.model = model or settings.GEMINI_MODEL
+        self.base_url = base_url or settings.GEMINI_BASE_URL
+        self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+
+    async def generate(
+        self,
+        prompt: str,
+        system: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 1000
+    ) -> LLMResponse:
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        return await self.chat(messages, temperature, max_tokens)
+
+    async def chat(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float = 0.7,
+        max_tokens: int = 1000
+    ) -> LLMResponse:
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            choice = response.choices[0] if response.choices else None
+            text = (
+                choice.message.content
+                if choice and choice.message and choice.message.content is not None
+                else ""
+            )
+
+            return LLMResponse(
+                text=text,
+                model=self.model,
+                tokens_used=response.usage.total_tokens if response.usage else None,
+                finish_reason=choice.finish_reason if choice else None
+            )
+        except Exception as e:
+            logger.error(f"Gemini API error: {e}")
             raise
 
 
@@ -250,6 +309,10 @@ class LLMClientFactory:
             if not settings.ANTHROPIC_API_KEY:
                 raise ValueError("ANTHROPIC_API_KEY not set")
             return AnthropicClient()
+        elif provider == "gemini":
+            if not settings.GEMINI_API_KEY:
+                raise ValueError("GEMINI_API_KEY not set")
+            return GeminiClient()
         else:
             raise ValueError(f"Unknown LLM provider: {provider}")
     
@@ -259,7 +322,8 @@ class LLMClientFactory:
         providers = {
             "ollama": {"available": False, "models": []},
             "openai": {"available": bool(settings.OPENAI_API_KEY)},
-            "anthropic": {"available": bool(settings.ANTHROPIC_API_KEY)}
+            "anthropic": {"available": bool(settings.ANTHROPIC_API_KEY)},
+            "gemini": {"available": bool(settings.GEMINI_API_KEY)}
         }
         
         # Check Ollama

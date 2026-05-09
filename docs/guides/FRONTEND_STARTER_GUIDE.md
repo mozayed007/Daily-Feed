@@ -93,19 +93,19 @@ import axios from 'axios';
 
 export const api = axios.create({
   baseURL: 'http://localhost:8000/api/v1',
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
 // Add response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error('API Error:', error.response?.data || error.message);
-    return Promise.reject(error);
-  }
-);
+api.interceptors.response.use((response) => response, (error) => {
+  const detail = error.response?.data?.detail;
+  const message = typeof detail === 'string' ? detail : error.message;
+  console.error('API Error:', message);
+  return Promise.reject(error);
+});
 ```
 
 ### 5. Create Query Client
@@ -426,7 +426,7 @@ Backend CORS is configured for:
 - `http://localhost:3000` (Create React App)
 - `http://localhost:5173` (Vite)
 
-If using a different port, add it in `back/app/core/config_manager.py`:
+If using a different port, add it in `backend/app/core/config_manager.py`:
 ```python
 cors_origins: List[str] = field(default_factory=lambda: [
     "http://localhost:3000",
@@ -436,7 +436,7 @@ cors_origins: List[str] = field(default_factory=lambda: [
 ```
 
 ### TypeScript Errors
-Make sure to copy the latest types from `docs/API_TYPES.ts`
+Make sure to copy the latest types from `docs/api/API_TYPES.ts`
 
 ---
 
@@ -445,7 +445,7 @@ Make sure to copy the latest types from `docs/API_TYPES.ts`
 ### Build for Production
 
 ```bash
-cd front
+cd frontend
 
 # With Bun (recommended)
 bun run build
@@ -461,7 +461,7 @@ The backend can serve the static files:
 # In main.py, add:
 from fastapi.staticfiles import StaticFiles
 
-app.mount("/", StaticFiles(directory="../front/dist", html=True))
+app.mount("/", StaticFiles(directory="../frontend/dist", html=True))
 ```
 
 ---
@@ -480,8 +480,8 @@ app.mount("/", StaticFiles(directory="../front/dist", html=True))
 ## 🆘 Getting Help
 
 - API Docs: `http://localhost:8000/docs`
-- Backend README: `back/README.md`
-- API Types: `docs/API_TYPES.ts`
-- Full API Reference: `docs/API.md`
+- Backend README: `backend/README.md`
+- API Types: `docs/api/API_TYPES.ts`
+- Full API Reference: `docs/api/API.md`
 
 Happy coding! 🎉

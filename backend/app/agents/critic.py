@@ -84,7 +84,7 @@ class QualityCriticAgent:
 ORIGINAL ARTICLE TITLE: {original.title}
 
 ORIGINAL ARTICLE CONTENT (first 3000 chars):
-{original.content[:3000]}
+{(original.content or "")[:3000]}
 
 SUMMARY TO EVALUATE:
 {summary.text}

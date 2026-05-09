@@ -12,10 +12,14 @@ from fastapi.responses import JSONResponse
 
 from app.core.config_manager import get_config, get_config_manager
 from app.core.logging_config import configure_logging, get_logger
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from app.database import Database
 from app.api.routes_v2 import router
+from app.api.auth_routes import router as auth_router
+from app.api.voice_routes import router as voice_router
 from app.core.scheduler import get_scheduler
-from app.core.agent_loop import get_agent_loop
+from app.ai.orchestrator import get_orchestrator
 
 # Configure structured logging
 configure_logging()
@@ -41,19 +45,19 @@ async def lifespan(app: FastAPI):
     await Database.create_tables()
     logger.info("database_initialized")
     
-    # Initialize agent loop
-    agent = get_agent_loop()
-    tool_count = len(agent.get_available_tools())
+    # Initialize AI orchestrator (pydantic-ai + pydantic-graph)
+    orchestrator = get_orchestrator()
+    status = await orchestrator.get_llm_status()
     logger.info(
-        "agent_loop_ready",
-        tool_count=tool_count,
-        tools=agent.get_available_tools(),
+        "ai_orchestrator_ready",
+        litellm_available=status["litellm_available"],
+        providers=list(status["providers"].keys()),
     )
-    
+
     # Start scheduler if enabled
     if config.schedule.enabled:
         scheduler = get_scheduler()
-        scheduler.setup_default_jobs(agent.run_pipeline)
+        scheduler.setup_default_jobs(orchestrator.run_pipeline)
         await scheduler.start()
         job_count = len(scheduler.list_jobs())
         logger.info(
@@ -81,17 +85,24 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
 # CORS middleware
+origins = config.cors_origins or ["http://localhost:3000", "http://localhost:5173"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.cors_origins,
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Include API routes
 app.include_router(router, prefix="/api/v1", tags=["api"])
+app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+app.include_router(voice_router, prefix="/api/v1", tags=["voice"])
 
 
 @app.get("/")

@@ -10,7 +10,7 @@
 // ============================================================================
 
 export interface Article {
-  id: number;
+  id: string | number;
   title: string;
   url: string;
   content?: string;
@@ -87,9 +87,6 @@ export interface UserInteraction {
   engagement_score: number;
 }
 
-export type UserPreferencesResponse = UserPreferences;
-export type UserInteractionResponse = UserInteraction;
-
 export interface PersonalizedDigest {
   id: string;
   created_at: string;
@@ -99,6 +96,11 @@ export interface PersonalizedDigest {
   status: 'pending' | 'sent' | 'opened';
   sent_at?: string;
 }
+
+// Response types for user hooks
+export interface UserPreferencesResponse extends UserPreferences {}
+
+export interface UserInteractionResponse extends UserInteraction {}
 
 export interface PersonalizedArticle extends Article {
   score: number;
@@ -110,6 +112,7 @@ export interface PersonalizedArticle extends Article {
     diversity: number;
     final: number;
   };
+  id: string | number;
 }
 
 export interface UserStats {
@@ -181,7 +184,7 @@ export interface UpdatePreferencesRequest {
 
 // Feedback
 export interface ArticleFeedbackRequest {
-  articleId: number;
+  article_id: string | number;
   feedback: 'like' | 'dislike' | 'save' | 'dismiss';
 }
 
@@ -198,7 +201,7 @@ export interface RecordInteractionRequest {
 
 // Pipeline
 export interface PipelineRequest {
-  task_type: 'fetch' | 'process' | 'digest' | 'full' | 'memory_sync';
+  task_type: 'fetch' | 'process' | 'digest' | 'full' | 'memory_sync' | 'trends' | 'cluster' | 'synthesize';
   params?: Record<string, any>;
 }
 
@@ -206,6 +209,68 @@ export interface PipelineResponse {
   success: boolean;
   task_type: string;
   result: any;
+}
+
+// ============================================================================
+// AI Features
+// ============================================================================
+
+export interface ArticleCluster {
+  cluster_id: string;
+  topic: string;
+  summary: string;
+  article_ids: number[];
+  confidence: number;
+}
+
+export interface ClusterResponse {
+  success: boolean;
+  data: ArticleCluster[];
+  message: string;
+}
+
+export interface MultiSourceSynthesis {
+  topic: string;
+  synthesized_summary: string;
+  sources_covered: string[];
+  consensus_points: string[];
+  conflicting_points: string[];
+  unique_perspectives: string[];
+}
+
+export interface SynthesizeResponse {
+  success: boolean;
+  data: MultiSourceSynthesis;
+  message: string;
+}
+
+export interface TrendResult {
+  topic: string;
+  article_count: number;
+  trend_direction: 'rising' | 'stable' | 'falling' | 'breaking';
+  summary: string;
+  top_sources: string[];
+  urgency: 'high' | 'medium' | 'low';
+}
+
+export interface TrendsResponse {
+  success: boolean;
+  data: TrendResult[];
+  message: string;
+}
+
+export interface DigestReasoning {
+  article_id: number;
+  inclusion_reason: string;
+  relevance_score: number;
+  personalized_for: string;
+  key_insight: string;
+}
+
+export interface ReasoningResponse {
+  success: boolean;
+  data: DigestReasoning;
+  message: string;
 }
 
 // Scheduler
@@ -335,4 +400,40 @@ export interface WebSocketMessage {
   type: 'article_new' | 'digest_ready' | 'job_complete' | 'error';
   payload: any;
   timestamp: string;
+}
+
+// ============================================================================
+// Voice Assistant
+// ============================================================================
+
+export interface VoiceCommandResponse {
+  success: boolean;
+  thought?: string;
+  response: string;
+  action: string;
+  action_payload?: Record<string, any>;
+  error?: string;
+}
+
+export interface VoiceStatus {
+  running: boolean;
+  voice: string;
+  trigger_mode: string;
+  history_turns: number;
+}
+
+export interface SpeakRequest {
+  text: string;
+  voice?: string;
+}
+
+export interface VoiceWebSocketMessage {
+  type: 'audio' | 'text' | 'transcription' | 'response' | 'error' | 'ping' | 'pong' | 'audio_out';
+  data?: string;
+  text?: string;
+  action?: string;
+  action_payload?: Record<string, any>;
+  format?: string;
+  sample_rate?: number;
+  message?: string;
 }

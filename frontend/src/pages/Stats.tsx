@@ -11,8 +11,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   Area,
   AreaChart,
 } from "recharts";
@@ -28,6 +26,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useUserStats } from "../hooks/useUser";
+import { StatsCardSkeleton, ChartSkeleton } from "../components/Skeleton";
+import { ErrorDisplay } from "../components/ErrorDisplay";
 
 const COLORS = {
   ai: "#8b5cf6",
@@ -38,48 +38,91 @@ const COLORS = {
   other: "#64748b",
 };
 
-const ACTIVITY_DATA = [
-  { day: "Mon", articles: 5, time: 12 },
-  { day: "Tue", articles: 8, time: 18 },
-  { day: "Wed", articles: 3, time: 8 },
-  { day: "Thu", articles: 12, time: 28 },
-  { day: "Fri", articles: 7, time: 15 },
-  { day: "Sat", articles: 15, time: 35 },
-  { day: "Sun", articles: 10, time: 22 },
-];
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const TOPICS_DATA = [
-  { name: "AI", value: 35, color: COLORS.ai },
-  { name: "Technology", value: 25, color: COLORS.tech },
-  { name: "Business", value: 20, color: COLORS.business },
-  { name: "Science", value: 12, color: COLORS.science },
-  { name: "Other", value: 8, color: COLORS.other },
-];
+const TOPIC_COLORS: Record<string, string> = {
+  AI: COLORS.ai,
+  Technology: COLORS.tech,
+  Business: COLORS.business,
+  Science: COLORS.science,
+  Crypto: COLORS.crypto,
+  Health: "#f43f5e",
+  Politics: "#475569",
+  Entertainment: "#a855f7",
+  Other: COLORS.other,
+};
 
-const SOURCES_DATA = [
-  { name: "TechCrunch", articles: 45, color: "#3b82f6" },
-  { name: "Hacker News", articles: 38, color: "#f97316" },
-  { name: "The Verge", articles: 32, color: "#8b5cf6" },
-  { name: "Bloomberg", articles: 28, color: "#10b981" },
-  { name: "WSJ", articles: 22, color: "#64748b" },
-];
-
-const ENGAGEMENT_DATA = [
-  { week: "W1", opens: 65, clicks: 42 },
-  { week: "W2", opens: 72, clicks: 48 },
-  { week: "W3", opens: 68, clicks: 45 },
-  { week: "W4", opens: 85, clicks: 62 },
-];
+const SOURCE_COLORS = ["#3b82f6", "#f97316", "#8b5cf6", "#10b981", "#64748b", "#f59e0b", "#ef4444", "#06b6d4"];
 
 export function Stats() {
-  const { data: stats, isLoading } = useUserStats();
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("7d");
+  const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
+  const { data: stats, isLoading, isError, refetch } = useUserStats(days);
+
+  // Derive chart data from real stats
+  const activityData = stats?.last_7_days_activity?.map((count, index) => {
+    const today = new Date();
+    const dayIndex = (today.getDay() + 1 + index) % 7; // Map to last 7 days ending with today
+    return {
+      day: DAY_LABELS[dayIndex],
+      articles: count,
+    };
+  }) || DAY_LABELS.map((day) => ({ day, articles: 0 }));
+
+  const topicsData = stats?.favorite_topics?.map((t) => ({
+    name: t.topic,
+    value: t.count,
+    color: TOPIC_COLORS[t.topic] || TOPIC_COLORS.Other,
+  })) || [];
+
+  const sourcesData = stats?.favorite_sources?.map((s, index) => ({
+    name: s.source,
+    articles: s.count,
+    color: SOURCE_COLORS[index % SOURCE_COLORS.length],
+  })) || [];
+
+  // Engagement trend derived from activity data (mocked weekly aggregation)
+  const engagementData = activityData.reduce(
+    (acc, curr, index) => {
+      const weekIndex = Math.floor(index / 7);
+      if (!acc[weekIndex]) {
+        acc[weekIndex] = { week: `W${weekIndex + 1}`, opens: 0, clicks: 0 };
+      }
+      acc[weekIndex].opens += curr.articles;
+      acc[weekIndex].clicks += Math.round(curr.articles * 0.6); // Estimate clicks as 60% of opens
+      return acc;
+    },
+    [] as { week: string; opens: number; clicks: number }[]
+  );
+
+  // Fallback to single week if not enough data
+  const finalEngagementData =
+    engagementData.length > 0
+      ? engagementData
+      : [{ week: "This Week", opens: stats?.total_articles_read || 0, clicks: Math.round((stats?.total_articles_read || 0) * 0.6) }];
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <StatsCardSkeleton key={i} />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <ChartSkeleton />
+          <ChartSkeleton />
+        </div>
       </div>
+    );
+  }
+
+  if (isError || !stats) {
+    return (
+      <ErrorDisplay
+        message="We couldn't load analytics right now. Please try again in a moment."
+        onRetry={() => refetch()}
+      />
     );
   }
 
@@ -142,11 +185,11 @@ export function Stats() {
             Track your news consumption habits
           </p>
         </div>
-        <div className="relative">
+        <div className="w-full sm:w-auto relative">
           <select
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value as any)}
-            className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 pr-10 text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer transition-colors"
+            className="w-full sm:w-40 appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 pr-10 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
           >
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
@@ -157,7 +200,7 @@ export function Stats() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {statCards.map((card, index) => (
           <motion.div
             key={card.label}
@@ -189,15 +232,15 @@ export function Stats() {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Activity Chart */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
+          className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
         >
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
               <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
@@ -210,9 +253,9 @@ export function Stats() {
               </p>
             </div>
           </div>
-          <div className="h-64">
+          <div className="h-56 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={ACTIVITY_DATA}>
+              <BarChart data={activityData}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="currentColor"
@@ -263,9 +306,9 @@ export function Stats() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
+          className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
         >
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
               <Zap className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
@@ -278,11 +321,11 @@ export function Stats() {
               </p>
             </div>
           </div>
-          <div className="h-64 flex items-center">
+          <div className="h-56 sm:h-64 flex items-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={TOPICS_DATA}
+                  data={topicsData.length > 0 ? topicsData : [{ name: "No Data", value: 1, color: COLORS.other }]}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -290,7 +333,7 @@ export function Stats() {
                   paddingAngle={2}
                   dataKey="value"
                 >
-                  {TOPICS_DATA.map((entry, index) => (
+                  {(topicsData.length > 0 ? topicsData : [{ name: "No Data", value: 1, color: COLORS.other }]).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -319,20 +362,24 @@ export function Stats() {
             </ResponsiveContainer>
             {/* Legend */}
             <div className="flex flex-col gap-2 min-w-[120px]">
-              {TOPICS_DATA.map((topic) => (
-                <div key={topic.name} className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: topic.color }}
-                  />
-                  <span className="text-sm text-slate-600 dark:text-slate-300">
-                    {topic.name}
-                  </span>
-                  <span className="text-sm font-medium text-slate-900 dark:text-white ml-auto">
-                    {topic.value}%
-                  </span>
-                </div>
-              ))}
+              {topicsData.length > 0 ? (
+                topicsData.map((topic) => (
+                  <div key={topic.name} className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: topic.color }}
+                    />
+                    <span className="text-sm text-slate-600 dark:text-slate-300">
+                      {topic.name}
+                    </span>
+                    <span className="text-sm font-medium text-slate-900 dark:text-white ml-auto">
+                      {topic.value}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">No topic data yet</p>
+              )}
             </div>
           </div>
         </motion.div>
@@ -342,9 +389,9 @@ export function Stats() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
+          className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
         >
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
               <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
@@ -357,9 +404,9 @@ export function Stats() {
               </p>
             </div>
           </div>
-          <div className="h-64">
+          <div className="h-56 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={ENGAGEMENT_DATA}>
+              <AreaChart data={finalEngagementData}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="currentColor"
@@ -446,9 +493,9 @@ export function Stats() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
+          className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
         >
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
               <Target className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             </div>
@@ -462,32 +509,36 @@ export function Stats() {
             </div>
           </div>
           <div className="space-y-4">
-            {SOURCES_DATA.map((source, index) => (
-              <div key={source.name} className="flex items-center gap-4">
-                <span className="text-sm font-medium text-slate-400 dark:text-slate-500 w-6">
-                  #{index + 1}
-                </span>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-slate-900 dark:text-white">
-                      {source.name}
-                    </span>
-                    <span className="text-sm text-slate-500 dark:text-slate-400">
-                      {source.articles} articles
-                    </span>
-                  </div>
-                  <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(source.articles / 50) * 100}%` }}
-                      transition={{ delay: 0.8 + index * 0.1, duration: 0.5 }}
-                      className="h-full rounded-full"
-                      style={{ backgroundColor: source.color }}
-                    />
+            {sourcesData.length > 0 ? (
+              sourcesData.map((source, index) => (
+                <div key={source.name} className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-slate-400 dark:text-slate-500 w-6">
+                    #{index + 1}
+                  </span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {source.name}
+                      </span>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {source.articles} articles
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min((source.articles / (sourcesData[0]?.articles || 1)) * 100, 100)}%` }}
+                        transition={{ delay: 0.8 + index * 0.1, duration: 0.5 }}
+                        className="h-full rounded-full"
+                        style={{ backgroundColor: source.color }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-slate-500 text-center py-4">No source data yet</p>
+            )}
           </div>
         </motion.div>
       </div>
@@ -505,13 +556,17 @@ export function Stats() {
           </div>
           <h3 className="font-semibold text-lg">Weekly Insight</h3>
         </div>
-        <p className="text-blue-50">
-          You're most active on{" "}
-          <span className="font-bold text-white">Saturday</span> with an
-          average of{" "}
-          <span className="font-bold text-white">15 articles</span> read.
-          Your engagement has increased by{" "}
-          <span className="font-bold text-white">23%</span> this week!
+        <p className="text-blue-100">
+          {stats?.total_articles_read ? (
+            <>
+              You've read <span className="font-semibold text-white">{stats.total_articles_read} articles</span> this week with an average read time of <span className="font-semibold text-white">{Math.round((stats?.average_reading_time || 0) / 60)}m</span>.
+              {stats.favorite_topics?.[0] && (
+                <> Your top topic is <span className="font-semibold text-white">{stats.favorite_topics[0].topic}</span>.</>
+              )}
+            </>
+          ) : (
+            "Start reading articles to see your personalized insights here!"
+          )}
         </p>
       </motion.div>
     </div>

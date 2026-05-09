@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ThumbsUp,
@@ -12,34 +13,71 @@ import {
   RefreshCw,
   ChevronDown,
   ExternalLink,
+  Newspaper,
 } from 'lucide-react';
-import { useArticles, useGenerateDigest, useArticleFeedback } from '../hooks/useArticles';
+import { useArticles, useGenerateDigest, useArticleFeedback, useSearchArticles } from '../hooks/useArticles';
 import { useUserStats } from '../hooks/useUser';
-import type { PersonalizedArticle } from '../types/api';
+import type { Article, PersonalizedArticle } from '../types/api';
+import { ArticleCardSkeleton } from '../components/Skeleton';
+import { ErrorDisplay } from '../components/ErrorDisplay';
+import { EmptyState } from '../components/EmptyState';
 
 export function Home() {
   const [showDigest, setShowDigest] = useState(false);
-  const { data: articles, isLoading: articlesLoading } = useArticles({ limit: 10 });
-  const { data: stats } = useUserStats();
+  const { data: articles, isLoading: articlesLoading, isError: articlesError } = useArticles({ limit: 10 });
+  const { data: stats, isError: statsError } = useUserStats();
   const generateDigest = useGenerateDigest();
   const feedback = useArticleFeedback();
+  const [digestError, setDigestError] = useState<string | null>(null);
 
   const handleGenerateDigest = () => {
     generateDigest.mutate();
+    setDigestError(null);
     setShowDigest(true);
   };
 
-  const handleFeedback = (articleId: number, type: 'like' | 'dislike' | 'save') => {
-    feedback.mutate({ articleId, feedback: type });
+  const handleDigestError = (error: unknown) => {
+    console.error('Digest generation failed:', error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('Network')) {
+        setDigestError('Network connection failed. Please check your internet connection.');
+      } else if (error.message.includes('404') || error.message.includes('Not Found')) {
+        setDigestError('Could not generate digest. Please try again later.');
+      } else if (error.message.includes('500') || error.message.includes('Server Error')) {
+        setDigestError('Server error occurred. Please try again later.');
+      } else {
+        setDigestError('An unexpected error occurred. Please try again.');
+      }
+    } else {
+      setDigestError('An unexpected error occurred. Please try again.');
+    }
   };
+
+  const resetDigestError = () => {
+    setDigestError(null);
+    setShowDigest(false);
+  };
+
+  const handleRetry = () => {
+    generateDigest.mutate();
+    setDigestError(null);
+  };
+
+  const handleFeedback = (articleId: string | number, type: 'like' | 'dislike' | 'save') => {
+    feedback.mutate({ article_id: Number(articleId), feedback: type });
+  };
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data: searchResults, isLoading: searchLoading } = useSearchArticles(searchQuery);
 
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="premium-gradient rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-primary/20"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-80 h-80 bg-white/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl animate-pulse" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl" />
@@ -64,25 +102,29 @@ export function Home() {
             disabled={generateDigest.isPending}
             className="flex-shrink-0 group relative overflow-hidden bg-white text-primary px-10 py-5 rounded-[2rem] font-bold text-lg hover:bg-slate-50 transition-all shadow-2xl hover:scale-105 active:scale-95"
           >
-            <div className="relative z-10 flex items-center gap-3">
-              {generateDigest.isPending ? (
-                <>
-                  <RefreshCw className="w-6 h-6 animate-spin" />
-                  Generating Intelligence...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-6 h-6" />
-                  Generate Tactical Brief
-                </>
-              )}
-            </div>
+            {generateDigest.isPending ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-5 h-5" />
+                Generate Today&apos;s Digest
+              </>
+            )}
+            {generateDigest.isError && (
+              <span className="ml-2 text-xs text-rose-500">⚠️</span>
+            )}
+            {digestError && (
+              <span className="ml-2 text-xs text-rose-500">⚠️</span>
+            )}
           </button>
         </div>
       </motion.div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           {
             icon: BookOpen,
@@ -114,10 +156,10 @@ export function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + index * 0.05 }}
-            className="glass-card rounded-3xl p-6 border-border/50"
+            className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
           >
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${stat.styles.bg}`}>
-              <stat.icon className="w-6 h-6" />
+            <div className={`w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center mb-3`}>
+              <stat.icon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <p className="text-3xl font-black tracking-tight text-foreground">{stat.value}</p>
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">{stat.label}</p>
@@ -197,29 +239,72 @@ export function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+      {showDigest && generateDigest.isError && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-300">
+          We couldn&apos;t generate a digest right now. Please try again.
+        </div>
+      )}
+      {showDigest && digestError && (
+        <ErrorDisplay
+          message={digestError}
+          onRetry={handleRetry}
+        />
+      )}
+
+      {/* Search Bar */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search articles..."
+          className="w-full pl-4 pr-10 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {searchLoading && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
+          </div>
+        )}
+      </div>
 
       {/* Recent Articles */}
       <div>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white transition-colors">Recent Articles</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white transition-colors">
+            {searchQuery ? `Search Results (${searchResults?.total ?? 0})` : 'Recent Articles'}
+          </h2>
           <button className="text-sm text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1 hover:underline">
             View all
             <ChevronDown className="w-4 h-4 -rotate-90" />
           </button>
         </div>
 
-        {articlesLoading ? (
+        {articlesLoading || searchLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 animate-pulse">
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4 mb-3" />
-                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
-              </div>
+              <ArticleCardSkeleton key={i} />
             ))}
           </div>
+        ) : articlesError || statsError ? (
+          <ErrorDisplay
+            message="We couldn't load your feed right now. Please try again in a moment."
+            onRetry={() => {
+              window.location.reload();
+            }}
+          />
+        ) : searchQuery && !searchResults?.articles?.length ? (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+            No articles found for &quot;{searchQuery}&quot;. Try a different search term.
+          </div>
+        ) : !searchQuery && !articles?.articles?.length ? (
+          <EmptyState
+            icon={Newspaper}
+            title="No articles yet"
+            description="Articles will appear once the pipeline fetches and processes them. Try generating a digest or check back later."
+          />
         ) : (
           <div className="space-y-4">
-            {articles?.articles.map((article, index) => (
+            {(searchQuery ? searchResults?.articles : articles?.articles)?.map((article, index) => (
               <ArticleCard
                 key={article.id}
                 article={article}
@@ -235,9 +320,9 @@ export function Home() {
 }
 
 interface ArticleCardProps {
-  article: any;
+  article: Article | PersonalizedArticle;
   index: number;
-  onFeedback: (articleId: number, type: 'like' | 'dislike' | 'save') => void;
+  onFeedback: (articleId: string | number, type: 'like' | 'dislike' | 'save') => void;
 }
 
 function ArticleCard({ article, index, onFeedback }: ArticleCardProps) {
@@ -276,9 +361,9 @@ function ArticleCard({ article, index, onFeedback }: ArticleCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all"
+      className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all"
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
         {/* Source Avatar */}
         <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 rounded-xl flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-300 transition-colors">
           {article.source?.slice(0, 2).toUpperCase()}
@@ -303,7 +388,9 @@ function ArticleCard({ article, index, onFeedback }: ArticleCardProps) {
 
           {/* Title */}
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
-            {article.title}
+            <Link to={`/articles/${article.id}`}>
+              {article.title}
+            </Link>
           </h3>
 
           {/* Summary */}
@@ -355,7 +442,7 @@ function ArticleCard({ article, index, onFeedback }: ArticleCardProps) {
               {article.summary && (
                 <button
                   onClick={() => setExpanded(!expanded)}
-                  className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium"
+                  className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium cursor-pointer z-10"
                 >
                   {expanded ? 'Show less' : 'Read more'}
                 </button>
@@ -388,10 +475,10 @@ function ActionButton({ onClick, active, activeColor, icon: Icon, label }: Actio
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+      className={`flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-all ${
         active
           ? activeColor
-          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 active:bg-slate-200 dark:active:bg-slate-600'
       }`}
     >
       <Icon className="w-4 h-4" />

@@ -10,7 +10,16 @@ This script demonstrates:
 """
 
 import asyncio
+import sys
 from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 from app.core.personalization import get_personalization_engine, get_user_model_trainer
 from app.models.user import UserPreferencesModel, UserInteractionModel

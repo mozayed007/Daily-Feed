@@ -15,6 +15,7 @@ class LLMProvider(str, Enum):
     OLLAMA = "ollama"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
 
 
 @dataclass
@@ -203,6 +204,11 @@ class ConfigManager:
             config.llm.api_key = os.getenv("ANTHROPIC_API_KEY")
             if config.llm.provider == LLMProvider.OLLAMA:
                 config.llm.provider = LLMProvider.ANTHROPIC
+
+        if os.getenv("GEMINI_API_KEY"):
+            config.llm.api_key = os.getenv("GEMINI_API_KEY")
+            if config.llm.provider == LLMProvider.OLLAMA:
+                config.llm.provider = LLMProvider.GEMINI
         
         # Database
         if os.getenv(f"{self.ENV_PREFIX}DATABASE_URL"):
@@ -387,7 +393,7 @@ class ConfigManager:
                 {
                     "name": "Smol AI News",
                     "url": "https://news.smol.ai/rss",
-                    "category": "AI/ML",
+                    "category": "AI",
                     "enabled": True
                 },
                 {

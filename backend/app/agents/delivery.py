@@ -7,8 +7,12 @@ from datetime import datetime, timezone
 from urllib.parse import quote
 
 import httpx
-from telegram import Bot
-from telegram.constants import ParseMode
+try:
+    from telegram import Bot
+    from telegram.constants import ParseMode
+except ImportError:  # pragma: no cover - optional dependency for legacy agent path
+    Bot = None
+    ParseMode = None
 
 from app.database import ArticleModel, DigestModel
 from app.config import get_settings
@@ -39,10 +43,15 @@ class DeliveryAgent:
     ):
         self.telegram_token = telegram_token or settings.TELEGRAM_BOT_TOKEN
         self.telegram_chat_id = telegram_chat_id or settings.TELEGRAM_CHAT_ID
-        self.bot: Optional[Bot] = None
+        self.bot: Optional[Any] = None
         
         if self.telegram_token:
-            self.bot = Bot(token=self.telegram_token)
+            if Bot is None:
+                logger.warning(
+                    "python-telegram-bot is not installed; Telegram delivery is disabled for DeliveryAgent"
+                )
+            else:
+                self.bot = Bot(token=self.telegram_token)
     
     def create_digest(
         self, 

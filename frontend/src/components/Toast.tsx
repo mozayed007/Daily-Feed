@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, AlertCircle, Info, X, AlertTriangle } from 'lucide-react';
 import { events } from '../lib/events';
@@ -51,7 +51,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
   }, []);
 
   useEffect(() => {
-    return events.on('toast', (data) => {
+    return events.on<Omit<Toast, 'id'>>('toast', (data: Omit<Toast, 'id'>) => {
       addToast(data);
     });
   }, [addToast]);
@@ -90,7 +90,7 @@ interface ToastItemProps {
   onDismiss: () => void;
 }
 
-function ToastItem({ toast, onDismiss }: ToastItemProps) {
+const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onDismiss }, ref) => {
   const icons = {
     success: CheckCircle,
     error: AlertCircle,
@@ -130,6 +130,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -151,4 +152,4 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
       </button>
     </motion.div>
   );
-}
+});

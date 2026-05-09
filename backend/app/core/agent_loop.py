@@ -319,7 +319,7 @@ class AgentLoop:
         
         # Get recent processed articles not yet in memory
         async with Database.get_session() as db:
-            cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
             result = await db.execute(
                 select(ArticleModel)
                 .where(ArticleModel.is_processed == True)

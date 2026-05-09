@@ -2,36 +2,49 @@
 API Routes v2 - Updated for new agent loop architecture
 """
 
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from pydantic import BaseModel, Field
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import (
-    Database, ArticleModel, SourceModel, DigestModel,
+    get_db, Database, ArticleModel, SourceModel, DigestModel,
     ArticleResponse, ArticleListResponse, SourceResponse, SourceCreate,
     DigestResponse, StatsResponse
 )
-from app.core.agent_loop import get_agent_loop
+from app.ai.orchestrator import get_orchestrator
 from app.core.scheduler import get_scheduler
 from app.core.memory import get_memory_store
 from app.core.config_manager import get_config_manager, get_config
+from app.api.user_routes import router as user_router
+from app.api.deps import get_current_user
+from app.models.user import UserModel
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Include user routes
-from app.api.user_routes import router as user_router
 router.include_router(user_router)
 
 
-# Dependency
-async def get_db():
-    async with Database.get_session() as session:
-        yield session
+# ========== Pydantic Models ==========
+
+class JobConfig(BaseModel):
+    name: str = Field(..., description="Job name")
+    type: str = Field(default="fetch", description="Pipeline type: fetch, process, or digest")
+    cron: Optional[str] = Field(default=None, description="Cron expression (e.g., '0 8 * * *')")
+    interval: Optional[int] = Field(default=None, ge=1, description="Interval in seconds (alias for interval_seconds)")
+    interval_seconds: Optional[int] = Field(default=None, ge=1, description="Interval in seconds")
+    enabled: bool = Field(default=True, description="Whether job is enabled")
+
+
+class JobToggle(BaseModel):
+    enabled: bool = Field(..., description="Enable or disable the job")
 
 
 # ========== Health & Status ==========
@@ -39,14 +52,18 @@ async def get_db():
 @router.get("/health")
 async def health_check():
     """Health check endpoint"""
-    agent = get_agent_loop()
+    orchestrator = get_orchestrator()
     config = get_config()
-    
+    status = await orchestrator.get_llm_status()
+
     return {
         "status": "healthy",
         "version": config.version,
-        "tools_available": agent.get_available_tools(),
-        "scheduler_running": get_scheduler()._running
+        "ai_providers": status["providers"],
+        "litellm_available": status["litellm_available"],
+        "agents": ["summarize", "critique", "cluster", "synthesize", "digest_reason", "trend"],
+        "graphs": ["article_processing", "digest_generation", "full_pipeline"],
+        "scheduler_running": get_scheduler().is_running,
     }
 
 
@@ -105,12 +122,60 @@ async def get_article(article_id: int, db: AsyncSession = Depends(get_db)):
     return ArticleResponse.model_validate(article)
 
 
+# ========== Article Categories ==========
+
+@router.get("/articles/categories")
+async def get_article_categories(db: AsyncSession = Depends(get_db)):
+    """Get distinct article categories with counts"""
+    result = await db.execute(
+        select(ArticleModel.category, func.count().label("cnt"))
+        .where(ArticleModel.category.isnot(None))
+        .group_by(ArticleModel.category)
+        .order_by(desc("cnt"))
+    )
+    return [{"name": row[0], "count": row[1]} for row in result.all()]
+
+
+@router.get("/articles/search")
+async def search_articles(
+    q: str = Query(..., min_length=1, max_length=100, description="Search query"),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db)
+):
+    """Search articles by title, summary, or content using SQLite LIKE."""
+    search_term = f"%{q}%"
+
+    result = await db.execute(
+        select(ArticleModel)
+        .where(
+            (ArticleModel.title.ilike(search_term))
+            | (ArticleModel.summary.ilike(search_term))
+            | (ArticleModel.content.ilike(search_term))
+        )
+        .order_by(desc(ArticleModel.fetched_at))
+        .limit(limit)
+    )
+    articles = result.scalars().all()
+
+    return {
+        "query": q,
+        "articles": [ArticleResponse.model_validate(a) for a in articles],
+        "total": len(articles)
+    }
+
+
 # ========== Sources ==========
 
 @router.get("/sources", response_model=List[SourceResponse])
-async def get_sources(db: AsyncSession = Depends(get_db)):
-    """Get all RSS sources"""
-    result = await db.execute(select(SourceModel))
+async def get_sources(
+    enabled_only: bool = Query(True, description="Filter to enabled sources only"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get RSS sources"""
+    query = select(SourceModel)
+    if enabled_only:
+        query = query.where(SourceModel.enabled == True)
+    result = await db.execute(query)
     sources = result.scalars().all()
     return [SourceResponse.model_validate(s) for s in sources]
 
@@ -190,6 +255,51 @@ async def delete_source(source_id: int, db: AsyncSession = Depends(get_db)):
     return {"success": True, "message": "Source deleted"}
 
 
+@router.post("/sources/fetch")
+async def fetch_all_sources(
+    source_ids: Optional[List[int]] = None,
+    background_tasks: BackgroundTasks = None
+):
+    """Trigger fetch for all or specified sources"""
+    from app.tools.fetch_tool import FetchTool
+    
+    async def run_fetch(ids):
+        tool = FetchTool()
+        await tool.execute(source_ids=ids)
+    
+    if background_tasks is not None:
+        background_tasks.add_task(run_fetch, source_ids)
+        return {"message": "Fetch started in background"}
+    else:
+        await run_fetch(source_ids)
+        return {"message": "Fetch completed"}
+
+
+@router.post("/sources/{source_id}/fetch")
+async def fetch_source(
+    source_id: int,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """Fetch articles from a specific source"""
+    result = await db.execute(
+        select(SourceModel).where(SourceModel.id == source_id)
+    )
+    source = result.scalar_one_or_none()
+    
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    from app.tools.fetch_tool import FetchTool
+    
+    async def run_fetch():
+        tool = FetchTool()
+        await tool.execute(source_ids=[source_id])
+    
+    background_tasks.add_task(run_fetch)
+    return {"message": f"Fetch started for source {source_id}"}
+
+
 # ========== Agent Loop / Pipelines ==========
 
 @router.post("/pipeline/{task_type}")
@@ -199,20 +309,23 @@ async def run_pipeline(
     params: Optional[Dict[str, Any]] = None
 ):
     """
-    Run a pipeline task using the agent loop.
-    
+    Run a pipeline task using the AI orchestrator.
+
     Available task types:
     - fetch: Fetch articles from sources
-    - process: Process/summarize unprocessed articles
-    - digest: Create and deliver digest
-    - full: Run complete pipeline (fetch -> process -> digest)
+    - process: Process/summarize unprocessed articles via graph
+    - digest: Create and deliver digest via graph
+    - full: Run complete pipeline (fetch -> process -> digest) via graph
     - memory_sync: Sync articles to memory
+    - trends: Detect emerging trends
+    - cluster: Cluster articles by topic
+    - synthesize: Synthesize multiple sources on a topic
     """
-    agent = get_agent_loop()
+    orchestrator = get_orchestrator()
     params = params or {}
-    
+
     try:
-        result = await agent.run_pipeline(task_type, **params)
+        result = await orchestrator.run_pipeline(task_type, **params)
         return {
             "success": result.get("success", False),
             "task_type": task_type,
@@ -220,30 +333,65 @@ async def run_pipeline(
         }
     except Exception as e:
         logger.error(f"Pipeline error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Pipeline execution failed")
 
 
 @router.get("/tools")
 async def list_tools():
-    """List available tools in the agent loop"""
-    agent = get_agent_loop()
+    """List available AI capabilities"""
     return {
-        "tools": agent.get_available_tools()
+        "agents": [
+            {"name": "summarize", "description": "Summarize articles with structured output"},
+            {"name": "critique", "description": "Critique summary quality"},
+            {"name": "cluster", "description": "Group articles by topic"},
+            {"name": "synthesize", "description": "Merge multi-source coverage"},
+            {"name": "digest_reason", "description": "Explain why article is relevant"},
+            {"name": "trend", "description": "Detect emerging trends"},
+        ],
+        "graphs": [
+            {"name": "article_processing", "description": "Parallel summarize -> critique -> memory"},
+            {"name": "digest_generation", "description": "Cluster -> synthesize -> deliver"},
+            {"name": "full_pipeline", "description": "fetch -> process -> digest"},
+        ],
     }
 
 
-@router.post("/tools/{tool_name}")
-async def execute_tool(tool_name: str, params: Dict[str, Any]):
-    """Execute a specific tool directly"""
-    agent = get_agent_loop()
-    
-    result = await agent.tools.execute(tool_name, **params)
-    return {
-        "success": result.success,
-        "data": result.data,
-        "message": result.message,
-        "error": result.error
-    }
+@router.post("/agents/{agent_name}")
+async def run_agent(
+    agent_name: str,
+    params: Dict[str, Any],
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Execute a specific AI agent directly (requires authentication)"""
+    orchestrator = get_orchestrator()
+
+    allowed = {"summarize", "critique", "cluster", "synthesize", "trends"}
+    if agent_name not in allowed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Agent '{agent_name}' is not allowed via API"
+        )
+
+    if agent_name == "summarize":
+        result = await orchestrator.summarize(
+            article_id=params.get("article_id", 0),
+            style=params.get("style", "concise"),
+        )
+    elif agent_name == "critique":
+        result = await orchestrator.critique(params.get("article_id", 0))
+    elif agent_name == "cluster":
+        result = await orchestrator.cluster(params.get("article_ids", []))
+    elif agent_name == "synthesize":
+        result = await orchestrator.synthesize(
+            topic=params.get("topic", ""),
+            article_ids=params.get("article_ids", []),
+        )
+    elif agent_name == "trends":
+        result = await orchestrator.detect_trends(params.get("article_ids"))
+    else:
+        raise HTTPException(status_code=400, detail="Unknown agent")
+
+    return result
 
 
 # ========== Scheduler ==========
@@ -253,46 +401,59 @@ async def list_scheduled_jobs():
     """List all scheduled jobs"""
     scheduler = get_scheduler()
     jobs = scheduler.list_jobs()
-    
-    return {
-        "jobs": [
-            {
-                "id": j.id,
-                "name": j.name,
-                "enabled": j.enabled,
-                "cron": j.cron,
-                "interval_seconds": j.interval_seconds,
-                "last_run": j.last_run.isoformat() if j.last_run else None,
-                "next_run": j.next_run.isoformat() if j.next_run else None,
-                "run_count": j.run_count,
-                "status": j.status.value
-            }
-            for j in jobs
-        ]
-    }
+
+    return {"jobs": jobs}
 
 
 @router.post("/scheduler/jobs")
-async def add_scheduled_job(job_config: Dict[str, Any]):
-    """Add a new scheduled job"""
+async def add_scheduled_job(job_config: JobConfig):
+    """Add a new scheduled job with AI orchestrator pipeline callback"""
     scheduler = get_scheduler()
-    
-    if job_config.get("cron"):
-        job = scheduler.add_cron_job(
-            name=job_config["name"],
-            cron=job_config["cron"],
-            callback=lambda: None,  # Would need to be configured properly
-        )
-    elif job_config.get("interval_seconds"):
-        job = scheduler.add_interval_job(
-            name=job_config["name"],
-            seconds=job_config["interval_seconds"],
-            callback=lambda: None
-        )
-    else:
-        raise HTTPException(status_code=400, detail="Must specify cron or interval_seconds")
-    
+    orchestrator = get_orchestrator()
+
+    job_type = job_config.type
+
+    async def run_pipeline():
+        return await orchestrator.run_pipeline(job_type)
+
+    try:
+        # Use interval if interval_seconds is None
+        interval = job_config.interval_seconds or job_config.interval
+
+        if job_config.cron:
+            job = scheduler.add_cron_job(
+                name=job_config.name,
+                cron=job_config.cron,
+                callback=run_pipeline,
+            )
+        elif interval:
+            job = scheduler.add_interval_job(
+                name=job_config.name,
+                seconds=interval,
+                callback=run_pipeline,
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Must specify cron or interval/interval_seconds")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     return {"success": True, "job_id": job.id}
+
+
+@router.patch("/scheduler/jobs/{job_id}")
+async def toggle_scheduled_job(job_id: str, job_toggle: JobToggle):
+    """Enable or disable a scheduled job"""
+    scheduler = get_scheduler()
+
+    if job_toggle.enabled:
+        success = scheduler.enable_job(job_id)
+    else:
+        success = scheduler.disable_job(job_id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return {"success": True, "job_id": job_id, "enabled": job_toggle.enabled}
 
 
 @router.post("/scheduler/start")
@@ -321,6 +482,24 @@ async def delete_scheduled_job(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     
     return {"success": True, "message": f"Job {job_id} removed"}
+
+
+@router.post("/scheduler/jobs/{job_id}/run")
+async def run_scheduled_job(job_id: str):
+    """Manually trigger a scheduled job to run immediately"""
+    scheduler = get_scheduler()
+    job = scheduler.get_job(job_id)
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if job.status.value == "running":
+        raise HTTPException(status_code=409, detail="Job is already running")
+    
+    # Run the job in the background
+    asyncio.create_task(scheduler._execute_job(job))
+    
+    return {"success": True, "message": f"Job {job_id} triggered"}
 
 
 # ========== Memory ==========
@@ -389,32 +568,35 @@ async def search_memory(query: Dict[str, Any]):
 # ========== Articles Single Operations ==========
 
 @router.post("/articles/{article_id}/summarize")
-async def summarize_article(
+async def summarize_single_article(
     article_id: int,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ):
-    """Trigger summarization for a single article"""
+    """Trigger summarization for a single article via pydantic-ai"""
     result = await db.execute(
         select(ArticleModel).where(ArticleModel.id == article_id)
     )
     article = result.scalar_one_or_none()
-    
+
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    
-    # Run summarization using agent loop
-    agent = get_agent_loop()
-    tool_result = await agent.tools.execute("summarize_article", article_id=article_id)
-    
-    if tool_result.success:
+
+    # Run summarization using AI orchestrator
+    orchestrator = get_orchestrator()
+    result = await orchestrator.summarize(article_id=article_id)
+
+    if result.get("success"):
+        data = result.get("data", {})
         return {
             "success": True,
-            "score": tool_result.data.get("critic_score"),
-            "summary": tool_result.data.get("summary")
+            "score": data.get("critic_score"),
+            "summary": data.get("summary"),
+            "category": data.get("category"),
+            "key_points": data.get("key_points"),
         }
     else:
-        raise HTTPException(status_code=500, detail=tool_result.error)
+        raise HTTPException(status_code=500, detail=result.get("error", "Summarization failed"))
 
 
 # ========== Digests ==========
@@ -452,6 +634,73 @@ async def get_digest(digest_id: int, db: AsyncSession = Depends(get_db)):
     digest.articles = articles_result.scalars().all()
     
     return DigestResponse.model_validate(digest)
+
+
+# ========== AI Features ==========
+
+class ClusterRequest(BaseModel):
+    article_ids: List[int] = Field(..., description="Article IDs to cluster")
+
+
+@router.post("/articles/cluster")
+async def cluster_articles_endpoint(
+    request: ClusterRequest,
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Cluster articles by topic using AI"""
+    orchestrator = get_orchestrator()
+    result = await orchestrator.cluster(request.article_ids)
+    return result
+
+
+class SynthesizeRequest(BaseModel):
+    topic: str = Field(..., description="Topic to synthesize")
+    article_ids: List[int] = Field(..., description="Article IDs covering the topic")
+
+
+@router.post("/articles/synthesize")
+async def synthesize_articles_endpoint(
+    request: SynthesizeRequest,
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Synthesize multiple sources on a shared topic"""
+    orchestrator = get_orchestrator()
+    result = await orchestrator.synthesize(request.topic, request.article_ids)
+    return result
+
+
+@router.get("/articles/trends")
+async def detect_trends_endpoint(
+    article_ids: Optional[List[int]] = Query(None),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """Detect emerging trends from articles"""
+    orchestrator = get_orchestrator()
+    result = await orchestrator.detect_trends(article_ids)
+    return result
+
+
+@router.post("/articles/{article_id}/reason")
+async def reason_article_inclusion(
+    article_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Explain why an article is relevant to the current user"""
+    from app.models.user import UserPreferencesModel
+
+    # Get user preferences
+    pref_result = await db.execute(
+        select(UserPreferencesModel).where(UserPreferencesModel.user_id == current_user.id)
+    )
+    preferences = pref_result.scalar_one_or_none()
+
+    if not preferences:
+        raise HTTPException(status_code=400, detail="User has no preferences set")
+
+    orchestrator = get_orchestrator()
+    result = await orchestrator.reason_inclusion(article_id, preferences)
+    return result
 
 
 # ========== Stats ==========

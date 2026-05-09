@@ -26,7 +26,8 @@ class TestHealthEndpoint:
         data = response.json()
         assert data["status"] == "healthy"
         assert "version" in data
-        assert "tools_available" in data
+        assert "agents" in data
+        assert "graphs" in data
 
 
 class TestArticlesEndpoints:

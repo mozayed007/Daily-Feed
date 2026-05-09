@@ -17,6 +17,7 @@ from app.database import Database, ArticleModel, SourceModel
 from app.models.user import UserModel, UserPreferencesModel
 from app.core.config_manager import get_config_manager
 from app.core.logging_config import configure_logging, get_logger
+from app.core.auth import get_password_hash
 
 logger = get_logger(__name__)
 
@@ -57,6 +58,30 @@ async def seed_demo_data():
                 category="Technology",
                 enabled=True
             ),
+            SourceModel(
+                name="BBC News - Technology",
+                url="https://feeds.bbci.co.uk/news/technology/rss.xml",
+                category="Technology",
+                enabled=True
+            ),
+            SourceModel(
+                name="Wired",
+                url="https://www.wired.com/feed/rss",
+                category="Technology",
+                enabled=True
+            ),
+            SourceModel(
+                name="Ars Technica",
+                url="https://feeds.arstechnica.com/arstechnica/index",
+                category="Technology",
+                enabled=True
+            ),
+            SourceModel(
+                name="Reuters Technology",
+                url="https://www.reutersagency.com/feed/?best-topics=tech",
+                category="Technology",
+                enabled=True
+            ),
         ]
         
         for source in sources:
@@ -69,6 +94,7 @@ async def seed_demo_data():
         user = UserModel(
             email="demo@dailyfeed.local",
             name="Demo User",
+            password_hash=get_password_hash("Demo123"),
             onboarding_completed=True
         )
         db.add(user)
@@ -81,12 +107,18 @@ async def seed_demo_data():
                 "AI": 0.9,
                 "Technology": 0.8,
                 "Business": 0.6,
-                "Science": 0.5
+                "Science": 0.5,
+                "Programming": 0.7,
+                "Gadgets": 0.5
             },
             source_preferences={
                 "TechCrunch": 1.0,
                 "Hacker News": 0.9,
-                "The Verge": 0.8
+                "The Verge": 0.8,
+                "BBC News - Technology": 0.7,
+                "Wired": 0.8,
+                "Ars Technica": 0.9,
+                "Reuters Technology": 0.6
             },
             summary_length="medium",
             daily_article_limit=10,
@@ -204,7 +236,8 @@ async def seed_demo_data():
         print(f"""
 Demo User:
   Email: demo@dailyfeed.local
-  Interests: AI, Technology, Business, Science
+  Password: Demo123
+  Interests: AI, Technology, Business, Science, Programming, Gadgets
 
 Next Steps:
   1. Start the server: python main.py

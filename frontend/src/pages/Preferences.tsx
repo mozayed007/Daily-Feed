@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sliders,
@@ -6,7 +6,6 @@ import {
   Clock,
   Type,
   Filter,
-  Shield,
   Zap,
   ChevronRight,
   Check,
@@ -14,7 +13,9 @@ import {
   Trash2,
   Plus,
 } from 'lucide-react';
-import { usePreferences, useUpdatePreferences } from '../hooks/useUser';
+import { usePreferences, useUpdatePreferences, useResetPreferences } from '../hooks/useUser';
+import { useSources } from '../hooks/useSources';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const TOPICS = [
   { id: 'AI', label: 'AI', color: 'bg-violet-500' },
@@ -27,13 +28,14 @@ const TOPICS = [
   { id: 'Entertainment', label: 'Entertainment', color: 'bg-fuchsia-500' },
 ];
 
-const SOURCES = [
+const SOURCES_FALLBACK = [
   { id: 'TechCrunch', name: 'TechCrunch', icon: 'TC' },
   { id: 'Hacker News', name: 'Hacker News', icon: 'HN' },
   { id: 'The Verge', name: 'The Verge', icon: 'TV' },
   { id: 'Bloomberg', name: 'Bloomberg', icon: 'BB' },
   { id: 'WSJ', name: 'Wall Street Journal', icon: 'WSJ' },
   { id: 'Science Daily', name: 'Science Daily', icon: 'SD' },
+  { id: 'Smol AI News', name: 'Smol AI News', icon: 'SA' },
 ];
 
 const SUMMARY_LENGTHS = [
@@ -49,17 +51,49 @@ const FRESHNESS_OPTIONS = [
 ];
 
 export function Preferences() {
-  const { data: preferences, isLoading } = usePreferences();
+  const { data: preferences, isLoading, isError } = usePreferences();
   const updatePreferences = useUpdatePreferences();
+  const resetPreferences = useResetPreferences();
+  const { data: sourcesData, isLoading: sourcesLoading } = useSources();
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [newBlockedTopic, setNewBlockedTopic] = useState('');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const topicUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dailyLimitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getSources = () => {
+    if (sourcesData && sourcesData.length > 0) {
+      return sourcesData.map((source) => ({
+        id: String(source.id),
+        name: source.name,
+        icon: source.name.substring(0, 2).toUpperCase(),
+      }));
+    }
+    return SOURCES_FALLBACK;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (topicUpdateTimeoutRef.current) {
+        clearTimeout(topicUpdateTimeoutRef.current);
+      }
+      if (dailyLimitTimeoutRef.current) {
+        clearTimeout(dailyLimitTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleInterestChange = (topicId: string, value: number) => {
     const newInterests = {
       ...preferences?.topic_interests,
       [topicId]: value / 100,
     };
-    updatePreferences.mutate({ topic_interests: newInterests });
+    if (topicUpdateTimeoutRef.current) {
+      clearTimeout(topicUpdateTimeoutRef.current);
+    }
+    topicUpdateTimeoutRef.current = setTimeout(() => {
+      updatePreferences.mutate({ topic_interests: newInterests });
+    }, 300);
   };
 
   const handleToggleSource = (sourceId: string) => {
@@ -68,6 +102,15 @@ export function Preferences() {
     updatePreferences.mutate({
       source_preferences: { ...currentSources, [sourceId]: newValue },
     });
+  };
+
+  const handleDailyLimitChange = (value: number) => {
+    if (dailyLimitTimeoutRef.current) {
+      clearTimeout(dailyLimitTimeoutRef.current);
+    }
+    dailyLimitTimeoutRef.current = setTimeout(() => {
+      updatePreferences.mutate({ daily_article_limit: value });
+    }, 300);
   };
 
   const handleAddBlockedTopic = () => {
@@ -81,7 +124,7 @@ export function Preferences() {
 
   const handleRemoveBlockedTopic = (topic: string) => {
     updatePreferences.mutate({
-      exclude_topics: preferences?.exclude_topics?.filter((t) => t !== topic) || [],
+      exclude_topics: preferences?.exclude_topics?.filter((t: string) => t !== topic) || [],
     });
   };
 
@@ -89,6 +132,14 @@ export function Preferences() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+
+  if (isError || !preferences) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-300">
+        We couldn&apos;t load your preferences. Please refresh and try again.
       </div>
     );
   }
@@ -179,19 +230,31 @@ export function Preferences() {
           >
             <button
               onClick={() => setActiveSection(activeSection === section.id ? null : section.id)}
-              className="w-full flex items-center justify-between p-6 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+              className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
             >
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl ${section.styles.bg}`}>
-                  <section.icon className={`w-5 h-5 ${section.styles.icon}`} />
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className={`p-2.5 sm:p-3 rounded-xl ${
+                  section.color === 'violet' ? 'bg-violet-50 dark:bg-violet-900/30' :
+                  section.color === 'blue' ? 'bg-blue-50 dark:bg-blue-900/30' :
+                  section.color === 'emerald' ? 'bg-emerald-50 dark:bg-emerald-900/30' :
+                  section.color === 'rose' ? 'bg-rose-50 dark:bg-rose-900/30' :
+                  'bg-amber-50 dark:bg-amber-900/30'
+                }`}>
+                  <section.icon className={`w-5 h-5 ${
+                    section.color === 'violet' ? 'text-violet-600 dark:text-violet-400' :
+                    section.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+                    section.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
+                    section.color === 'rose' ? 'text-rose-600 dark:text-rose-400' :
+                    'text-amber-600 dark:text-amber-400'
+                  }`} />
                 </div>
                 <div className="text-left">
                   <h3 className="font-semibold text-slate-900 dark:text-white transition-colors">{section.title}</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 transition-colors">{section.description}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 transition-colors hidden sm:block">{section.description}</p>
                 </div>
               </div>
               <ChevronRight
-                className={`w-5 h-5 text-slate-400 transition-transform ${
+                className={`w-5 h-5 text-slate-400 transition-transform flex-shrink-0 ${
                   activeSection === section.id ? 'rotate-90' : ''
                 }`}
               />
@@ -205,26 +268,26 @@ export function Preferences() {
                 exit={{ height: 0, opacity: 0 }}
                 className="border-t border-slate-100 dark:border-slate-700"
               >
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   {section.id === 'interests' && (
                     <div className="space-y-4">
                       {TOPICS.map((topic) => {
                         const value = Math.round((preferences?.topic_interests?.[topic.id] || 0.5) * 100);
                         return (
-                          <div key={topic.id} className="flex items-center gap-4">
-                            <span className="w-24 text-sm font-medium text-slate-700 dark:text-slate-300">
+                          <div key={topic.id} className="flex items-center gap-2 sm:gap-4">
+                            <span className="w-16 sm:w-24 text-sm font-medium text-slate-700 dark:text-slate-300">
                               {topic.label}
                             </span>
-                            <div className="flex-1 flex items-center gap-3">
+                            <div className="flex-1 flex items-center gap-2 sm:gap-3">
                               <input
                                 type="range"
                                 min="0"
                                 max="100"
                                 value={value}
                                 onChange={(e) => handleInterestChange(topic.id, parseInt(e.target.value))}
-                                className="flex-1 h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                className="flex-1 h-2.5 sm:h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                               />
-                              <span className="w-12 text-sm font-medium text-slate-600 dark:text-slate-300 text-right">
+                              <span className="w-10 sm:w-12 text-sm font-medium text-slate-600 dark:text-slate-400 text-right">
                                 {value}%
                               </span>
                             </div>
@@ -235,31 +298,37 @@ export function Preferences() {
                   )}
 
                   {section.id === 'sources' && (
-                    <div className="grid grid-cols-2 gap-3">
-                      {SOURCES.map((source) => {
-                        const isPreferred = preferences?.source_preferences?.[source.id] === 1.0;
-                        return (
-                          <button
-                            key={source.id}
-                            onClick={() => handleToggleSource(source.id)}
-                            className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-                              isPreferred
-                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                                : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
-                            }`}
-                          >
-                            <div
-                              className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
-                                isPreferred ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {sourcesLoading ? (
+                        <div className="col-span-2 flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                        </div>
+                      ) : (
+                        getSources().map((source) => {
+                          const isPreferred = preferences?.source_preferences?.[source.id] === 1.0;
+                          return (
+                            <button
+                              key={source.id}
+                              onClick={() => handleToggleSource(source.id)}
+                              className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                                isPreferred
+                                  ? 'border-blue-500 bg-blue-50'
+                                  : 'border-slate-200 hover:border-slate-300'
                               }`}
                             >
-                              {source.icon}
-                            </div>
-                            <span className="font-medium text-slate-900 dark:text-white">{source.name}</span>
-                            {isPreferred && <Check className="w-4 h-4 text-blue-600 ml-auto" />}
-                          </button>
-                        );
-                      })}
+                              <div
+                                className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
+                                  isPreferred ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                                }`}
+                              >
+                                {source.icon}
+                              </div>
+                              <span className="font-medium text-slate-900">{source.name}</span>
+                              {isPreferred && <Check className="w-4 h-4 text-blue-600 ml-auto" />}
+                            </button>
+                          );
+                        })
+                      )}
                     </div>
                   )}
 
@@ -267,23 +336,23 @@ export function Preferences() {
                     <div className="space-y-6">
                       {/* Summary Length */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                        <label className="block text-sm font-medium text-slate-700 mb-3">
                           Summary Length
                         </label>
                         <div className="grid grid-cols-3 gap-3">
                           {SUMMARY_LENGTHS.map((length) => (
                             <button
                               key={length.id}
-                              onClick={() => updatePreferences.mutate({ summary_length: length.id as any })}
+                              onClick={() => updatePreferences.mutate({ summary_length: length.id as 'short' | 'medium' | 'long' })}
                               className={`p-4 rounded-xl border-2 text-center transition-all ${
                                 preferences?.summary_length === length.id
-                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                                  : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
+                                  ? 'border-blue-500 bg-blue-50'
+                                  : 'border-slate-200 hover:border-slate-300'
                               }`}
                             >
-                              <p className="font-medium text-slate-900 dark:text-white">{length.label}</p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{length.desc}</p>
-                              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{length.time}</p>
+                              <p className="font-medium text-slate-900">{length.label}</p>
+                              <p className="text-xs text-slate-500 mt-1">{length.desc}</p>
+                              <p className="text-xs text-slate-400 mt-0.5">{length.time}</p>
                             </button>
                           ))}
                         </div>
@@ -291,23 +360,23 @@ export function Preferences() {
 
                       {/* Freshness */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                        <label className="block text-sm font-medium text-slate-700 mb-3">
                           Content Freshness
                         </label>
                         <div className="space-y-2">
                           {FRESHNESS_OPTIONS.map((option) => (
                             <button
                               key={option.id}
-                              onClick={() => updatePreferences.mutate({ freshness_preference: option.id as any })}
+                              onClick={() => updatePreferences.mutate({ freshness_preference: option.id as 'breaking' | 'daily' | 'weekly' })}
                               className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
                                 preferences?.freshness_preference === option.id
-                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                                  : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
+                                  ? 'border-blue-500 bg-blue-50'
+                                  : 'border-slate-200 hover:border-slate-300'
                               }`}
                             >
                               <div className="text-left">
-                                <p className="font-medium text-slate-900 dark:text-white">{option.label}</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">{option.desc}</p>
+                                <p className="font-medium text-slate-900">{option.label}</p>
+                                <p className="text-sm text-slate-500">{option.desc}</p>
                               </div>
                               {preferences?.freshness_preference === option.id && (
                                 <Check className="w-5 h-5 text-blue-600" />
@@ -319,20 +388,18 @@ export function Preferences() {
 
                       {/* Daily Limit */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                        <label className="block text-sm font-medium text-slate-700 mb-3">
                           Articles per Digest: {preferences?.daily_article_limit}
                         </label>
                         <input
                           type="range"
                           min="3"
                           max="20"
-                          value={preferences?.daily_article_limit || 10}
-                          onChange={(e) =>
-                            updatePreferences.mutate({ daily_article_limit: parseInt(e.target.value) })
-                          }
-                          className="w-full h-2 bg-slate-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          value={preferences.daily_article_limit || 10}
+                          onChange={(e) => handleDailyLimitChange(parseInt(e.target.value))}
+                          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
-                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        <div className="flex justify-between text-xs text-slate-500 mt-1">
                           <span>3</span>
                           <span>20</span>
                         </div>
@@ -344,7 +411,7 @@ export function Preferences() {
                     <div className="space-y-6">
                       {/* Blocked Topics */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                        <label className="block text-sm font-medium text-slate-700 mb-3">
                           Blocked Topics
                         </label>
                         <div className="flex gap-2 mb-3">
@@ -353,7 +420,7 @@ export function Preferences() {
                             value={newBlockedTopic}
                             onChange={(e) => setNewBlockedTopic(e.target.value)}
                             placeholder="Add topic to block..."
-                            className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 outline-none"
+                            className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                             onKeyDown={(e) => e.key === 'Enter' && handleAddBlockedTopic()}
                           />
                           <button
@@ -364,7 +431,7 @@ export function Preferences() {
                           </button>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {preferences?.exclude_topics?.map((topic) => (
+                          {preferences?.exclude_topics?.map((topic: string) => (
                             <span
                               key={topic}
                               className="inline-flex items-center gap-1 px-3 py-1 bg-rose-100 text-rose-700 rounded-full text-sm"
@@ -385,10 +452,10 @@ export function Preferences() {
                       </div>
 
                       {/* Auto-adjust */}
-                      <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                         <div>
-                          <p className="font-medium text-slate-900 dark:text-white">Auto-adjust Interests</p>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                          <p className="font-medium text-slate-900">Auto-adjust Interests</p>
+                          <p className="text-sm text-slate-500">
                             Let AI learn from your reading habits
                           </p>
                         </div>
@@ -414,7 +481,7 @@ export function Preferences() {
                     <div className="space-y-6">
                       {/* Delivery Time */}
                       <div>
-                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-3">
                           <Clock className="w-4 h-4" />
                           Daily Delivery Time
                         </label>
@@ -424,19 +491,19 @@ export function Preferences() {
                           onChange={(e) =>
                             updatePreferences.mutate({ delivery_time: e.target.value })
                           }
-                          className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 outline-none"
+                          className="px-4 py-2 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                         />
                       </div>
 
                       {/* Timezone */}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                        <label className="block text-sm font-medium text-slate-700 mb-3">
                           Timezone
                         </label>
                         <select
                           value={preferences?.timezone || 'UTC'}
                           onChange={(e) => updatePreferences.mutate({ timezone: e.target.value })}
-                          className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 outline-none"
+                          className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
                         >
                           <option value="UTC">UTC</option>
                           <option value="America/New_York">Eastern Time</option>
@@ -450,10 +517,10 @@ export function Preferences() {
                       </div>
 
                       {/* Reading Time */}
-                      <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                         <div>
-                          <p className="font-medium text-slate-900 dark:text-white">Show Reading Time</p>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                          <p className="font-medium text-slate-900">Show Reading Time</p>
+                          <p className="text-sm text-slate-500">
                             Display estimated read duration on articles
                           </p>
                         </div>
@@ -500,11 +567,29 @@ export function Preferences() {
               This will reset all your preferences to default values. Your reading history will be preserved.
             </p>
           </div>
-          <button className="px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors text-sm font-medium shadow-sm">
-            Reset All
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            disabled={resetPreferences.isPending}
+            className="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {resetPreferences.isPending ? 'Resetting...' : 'Reset'}
           </button>
         </div>
       </motion.div>
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Reset Preferences"
+        message="This will reset all your preferences to default values. Your reading history will be preserved. This action cannot be undone."
+        confirmLabel="Reset"
+        variant="warning"
+        onConfirm={() => {
+          resetPreferences.mutate();
+          setShowResetConfirm(false);
+        }}
+        onCancel={() => setShowResetConfirm(false)}
+      />
     </div>
   );
 }
+
