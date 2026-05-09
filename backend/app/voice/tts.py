@@ -25,7 +25,11 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-import sounddevice as sd
+
+try:
+    import sounddevice as sd
+except OSError:
+    sd = None  # PortAudio not available (e.g. CI runners)
 
 logger = logging.getLogger("voice.tts")
 
@@ -149,8 +153,11 @@ class TTSEngine:
             if audio.channels == 2:
                 samples = samples.reshape((-1, 2))
             samples /= np.iinfo(np.int16).max
-            sd.play(samples, audio.frame_rate)
-            sd.wait()
+            if sd is not None:
+                sd.play(samples, audio.frame_rate)
+                sd.wait()
+            else:
+                logger.warning("PortAudio not available; skipping playback.")
         except Exception:
             logger.warning("pydub not available; using temp-file playback.")
             with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:

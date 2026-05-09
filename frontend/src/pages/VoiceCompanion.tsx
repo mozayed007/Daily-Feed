@@ -34,32 +34,34 @@ export function VoiceCompanion() {
   const audioChunksRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const addMessage = (role: 'user' | 'assistant', text: string, action?: string) => {
+    setMessages((prev) => [
+      ...prev,
+      { id: `${Date.now()}-${Math.random()}`, role, text, action, timestamp: new Date() },
+    ]);
+  };
 
-  // Initialize WebSocket
-  useEffect(() => {
-    const ws = createVoiceWebSocket();
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      setConnected(true);
-      ws.send(JSON.stringify({ type: 'ping' }));
-    };
-
-    ws.onclose = () => setConnected(false);
-
-    ws.onmessage = (event) => {
-      const msg: VoiceWebSocketMessage = JSON.parse(event.data);
-      handleWsMessage(msg);
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, [handleWsMessage]);
+  const playAudio = (base64Data: string) => {
+    try {
+      const byteString = atob(base64Data);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onplay = () => setIsSpeaking(true);
+      audio.onended = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(url);
+      };
+      audio.play();
+    } catch (e) {
+      console.error('Audio playback error:', e);
+    }
+  };
 
   const handleWsMessage = useCallback((msg: VoiceWebSocketMessage) => {
     switch (msg.type) {
@@ -92,34 +94,32 @@ export function VoiceCompanion() {
     }
   }, [audioEnabled]);
 
-  const addMessage = (role: 'user' | 'assistant', text: string, action?: string) => {
-    setMessages((prev) => [
-      ...prev,
-      { id: `${Date.now()}-${Math.random()}`, role, text, action, timestamp: new Date() },
-    ]);
-  };
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  const playAudio = (base64Data: string) => {
-    try {
-      const byteString = atob(base64Data);
-      const ab = new ArrayBuffer(byteString.length);
-      const ia = new Uint8Array(ab);
-      for (let i = 0; i < byteString.length; i++) {
-        ia[i] = byteString.charCodeAt(i);
-      }
-      const blob = new Blob([ab], { type: 'audio/mpeg' });
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audio.onplay = () => setIsSpeaking(true);
-      audio.onended = () => {
-        setIsSpeaking(false);
-        URL.revokeObjectURL(url);
-      };
-      audio.play();
-    } catch (e) {
-      console.error('Audio playback error:', e);
-    }
-  };
+  // Initialize WebSocket
+  useEffect(() => {
+    const ws = createVoiceWebSocket();
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setConnected(true);
+      ws.send(JSON.stringify({ type: 'ping' }));
+    };
+
+    ws.onclose = () => setConnected(false);
+
+    ws.onmessage = (event) => {
+      const msg: VoiceWebSocketMessage = JSON.parse(event.data);
+      handleWsMessage(msg);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [handleWsMessage]);
 
   // Send text command (fallback when WS is not used or for text input)
   const sendTextCommand = async () => {

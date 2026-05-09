@@ -22,7 +22,12 @@ from pathlib import Path
 from typing import List, Optional
 
 import numpy as np
-import sounddevice as sd
+
+try:
+    import sounddevice as sd
+except OSError:
+    sd = None  # PortAudio not available (e.g. CI runners)
+
 import soundfile as sf
 
 logger = logging.getLogger("voice.kokoro_tts")
@@ -215,8 +220,11 @@ class KokoroTTSEngine:
         """Play audio through speakers."""
         if len(audio) == 0:
             return
-        sd.play(audio, samplerate)
-        sd.wait()
+        if sd is not None:
+            sd.play(audio, samplerate)
+            sd.wait()
+        else:
+            logger.warning("PortAudio not available; skipping playback.")
 
     def speak(self, text: str) -> None:
         """Synthesize and immediately play text."""

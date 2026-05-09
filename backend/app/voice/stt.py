@@ -18,7 +18,12 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-import sounddevice as sd
+
+try:
+    import sounddevice as sd
+except OSError:
+    sd = None  # PortAudio not available (e.g. CI runners)
+
 from faster_whisper import WhisperModel
 
 logger = logging.getLogger("voice.stt")
@@ -120,6 +125,8 @@ class STTEngine:
 
     def record_and_transcribe(self, duration: float = 5.0, samplerate: int = 16000) -> str:
         """Record audio from the default microphone and transcribe."""
+        if sd is None:
+            raise RuntimeError("PortAudio is not available; microphone recording is disabled.")
         logger.info("Recording %.1f seconds ...", duration)
         audio = sd.rec(
             int(duration * samplerate), samplerate=samplerate, channels=1, dtype="float32"
