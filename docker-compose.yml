@@ -18,7 +18,7 @@ services:
       - DAILYFEED_LLM_PROVIDER=gemini
       - DAILYFEED_OLLAMA_URL=http://host.docker.internal:11434
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemma-4-31b-it}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.1-flash-lite}
       - FIREWORKS_API_KEY=${FIREWORKS_API_KEY}
       - FIREWORKS_MODEL=${FIREWORKS_MODEL:-accounts/fireworks/routers/kimi-k2p6-turbo}
       - FIREWORKS_BASE_URL=${FIREWORKS_BASE_URL:-https://api.fireworks.ai/inference/v1}

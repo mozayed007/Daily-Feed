@@ -227,7 +227,7 @@ async def detect_trends(article_texts: List[str]) -> TrendList:
 # output, these agents return plain text and rely on prompt-based formatting.
 
 
-def _search_capabilities() -> list:
+def _search_capabilities() -> list | None:
     """Build capabilities list based on feature toggles."""
     caps = []
     from app.config import get_settings
