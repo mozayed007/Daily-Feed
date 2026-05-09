@@ -26,8 +26,9 @@ requests>=2.31.0
 # AI/LLM - Unified via litellm through pydantic-ai
 pydantic-ai>=0.0.21
 pydantic-graph>=0.0.21
-pydantic-ai-litellm>=1.0.0
+pydantic-ai-litellm>=0.2.0
 litellm>=1.59.0
+ollama>=0.1.0
 
 # Utilities
 pyyaml>=6.0
