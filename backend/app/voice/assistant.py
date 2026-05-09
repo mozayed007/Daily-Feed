@@ -184,9 +184,11 @@ def build_voice_agent(voice: str = "jarvis") -> Agent:
     capabilities: list = []
     if settings.ENABLE_WEB_SEARCH:
         from pydantic_ai.capabilities import WebSearch
+
         capabilities.append(WebSearch())
     if settings.ENABLE_URL_FETCH:
         from pydantic_ai.capabilities import WebFetch
+
         capabilities.append(WebFetch())
 
     agent = create_agent(

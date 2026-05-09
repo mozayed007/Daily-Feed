@@ -235,9 +235,11 @@ def _search_capabilities() -> list:
     s = get_settings()
     if s.ENABLE_WEB_SEARCH:
         from pydantic_ai.capabilities import WebSearch
+
         caps.append(WebSearch())
     if s.ENABLE_URL_FETCH:
         from pydantic_ai.capabilities import WebFetch
+
         caps.append(WebFetch())
     return caps or None
 
