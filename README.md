@@ -438,14 +438,14 @@ Docs:        5 comprehensive guides
 
 ### Environment Variables
 
-| Variable            | Description                                   | Default                               |
-| ------------------- | --------------------------------------------- | ------------------------------------- |
-| `DAILYFEED_LLM_PROVIDER` | LLM provider (ollama/openai/anthropic/gemini) | ollama                           |
-| `DAILYFEED_OLLAMA_URL`   | Ollama server URL                             | `http://localhost:11434`         |
-| `DAILYFEED_OLLAMA_MODEL` | Model to use                                  | llama3.2                           |
-| `OPENAI_API_KEY`         | OpenAI API key                                | -                                  |
-| `ANTHROPIC_API_KEY`      | Anthropic API key                             | -                                  |
-| `GEMINI_API_KEY`         | Google Gemini API key                         | -                                  |
+| Variable            | Description                                        | Default                               |
+| ------------------- | -------------------------------------------------- | ------------------------------------- |
+| `DAILYFEED_LLM_PROVIDER` | LLM provider (ollama/openai/anthropic/gemini) | ollama                                |
+| `DAILYFEED_OLLAMA_URL`   | Ollama server URL                             | `http://localhost:11434`              |
+| `DAILYFEED_OLLAMA_MODEL` | Model to use                                  | llama3.2                              |
+| `OPENAI_API_KEY`         | OpenAI API key                                | -                                     |
+| `ANTHROPIC_API_KEY`      | Anthropic API key                             | -                                     |
+| `GEMINI_API_KEY`         | Google Gemini API key                         | -                                     |
 | `DAILYFEED_DATABASE_URL` | SQLite connection string                      | sqlite+aiosqlite:///data/dailyfeed.db |
 
 Most runtime config keys use the `DAILYFEED_` prefix. API keys are read directly without that prefix.
