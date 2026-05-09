@@ -39,6 +39,8 @@ from pydantic_ai import Agent, RunContext
 from app.ai.llm import create_agent
 from app.ai.orchestrator import get_orchestrator
 from app.config import get_settings
+from app.voice.search import get_web_search_tool
+
 from app.voice.stt import get_stt_engine
 from app.voice.tts import FRIDAY_VOICE, JARVIS_VOICE, get_tts_engine
 
