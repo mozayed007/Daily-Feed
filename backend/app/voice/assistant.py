@@ -180,30 +180,32 @@ async def tool_open_dashboard(ctx: RunContext, path: str = "/") -> str:
 
 
 def build_voice_agent(voice: str = "jarvis") -> Agent:
-    """Create the pydantic-ai agent with all tools registered."""
-    model = create_agent(
+    """Create the pydantic-ai agent with all tools and capabilities registered."""
+    capabilities: list = []
+    if settings.ENABLE_WEB_SEARCH:
+        from pydantic_ai.capabilities import WebSearch
+        capabilities.append(WebSearch())
+    if settings.ENABLE_URL_FETCH:
+        from pydantic_ai.capabilities import WebFetch
+        capabilities.append(WebFetch())
+
+    agent = create_agent(
         system_prompt=SYSTEM_PROMPT,
         result_type=AssistantAction,
         model_override=None,  # use default from config
         temperature=0.6,
         max_tokens=800,
+        tools=[
+            tool_fetch_news,
+            tool_get_trends,
+            tool_remember_note,
+            tool_get_stats,
+            tool_start_scheduler,
+            tool_stop_scheduler,
+            tool_open_dashboard,
+        ],
+        capabilities=capabilities or None,
     )
-    # pydantic-ai Agent supports tool registration; attach tools to the agent instance
-    agent = Agent(
-        model=model.model,
-        instructions=SYSTEM_PROMPT,
-        output_type=AssistantAction,
-        model_settings=model.model_settings,
-    )
-    # Register tools
-    agent.tool(tool_fetch_news)
-    agent.tool(tool_get_trends)
-    agent.tool(tool_web_search)
-    agent.tool(tool_remember_note)
-    agent.tool(tool_get_stats)
-    agent.tool(tool_start_scheduler)
-    agent.tool(tool_stop_scheduler)
-    agent.tool(tool_open_dashboard)
     return agent
 
 

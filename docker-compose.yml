@@ -15,8 +15,13 @@ services:
     volumes:
       - ./backend/data:/app/data
     environment:
-      - DAILYFEED_LLM_PROVIDER=ollama
+      - DAILYFEED_LLM_PROVIDER=gemini
       - DAILYFEED_OLLAMA_URL=http://host.docker.internal:11434
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemma-4-31b-it}
+      - FIREWORKS_API_KEY=${FIREWORKS_API_KEY}
+      - FIREWORKS_MODEL=${FIREWORKS_MODEL:-accounts/fireworks/routers/kimi-k2p6-turbo}
+      - FIREWORKS_BASE_URL=${FIREWORKS_BASE_URL:-https://api.fireworks.ai/inference/v1}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

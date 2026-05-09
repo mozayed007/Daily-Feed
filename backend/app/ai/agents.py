@@ -218,3 +218,66 @@ async def detect_trends(article_texts: List[str]) -> TrendList:
     )
     result = await trend_agent.run(prompt)
     return result.data
+
+
+# ── Optional Web-Search-Enabled Agents (unstructured output) ────────────────
+# These use provider-adaptive capabilities (WebSearch, WebFetch) which fall
+# back to local DuckDuckGo/markdownify when the model doesn't natively support
+# builtin tools.  Because Gemini cannot mix builtin tools with structured
+# output, these agents return plain text and rely on prompt-based formatting.
+
+
+def _search_capabilities() -> list:
+    """Build capabilities list based on feature toggles."""
+    caps = []
+    from app.config import get_settings
+
+    s = get_settings()
+    if s.ENABLE_WEB_SEARCH:
+        from pydantic_ai.capabilities import WebSearch
+        caps.append(WebSearch())
+    if s.ENABLE_URL_FETCH:
+        from pydantic_ai.capabilities import WebFetch
+        caps.append(WebFetch())
+    return caps or None
+
+
+summarize_agent_with_search = create_agent(
+    system_prompt=(
+        "You are a professional news summarizer with real-time web access. "
+        "Create clear, accurate summaries of news articles. Focus on key facts "
+        "and main points. If the article lacks context, search the web to fill "
+        "gaps. Maintain a neutral, objective tone. "
+        "Return your response as plain text."
+    ),
+    result_type=None,  # plain text (no structured output — avoids Gemini conflict)
+    temperature=0.4,
+    max_tokens=1200,
+    capabilities=_search_capabilities(),
+)
+
+critique_agent_with_search = create_agent(
+    system_prompt=(
+        "You are a quality critic with web access. Evaluate news summaries "
+        "against original articles and rate them objectively. If facts are "
+        "questionable, verify them online. Be strict but fair. "
+        "Return your response as plain text."
+    ),
+    result_type=None,
+    temperature=0.3,
+    max_tokens=1000,
+    capabilities=_search_capabilities(),
+)
+
+synthesize_agent_with_search = create_agent(
+    system_prompt=(
+        "You are a multi-source news synthesizer with web access. Given articles "
+        "from multiple sources, create a unified narrative. If coverage is thin, "
+        "search for additional perspectives. Highlight consensus, conflicts, "
+        "and unique angles. Return your response as plain text."
+    ),
+    result_type=None,
+    temperature=0.5,
+    max_tokens=1500,
+    capabilities=_search_capabilities(),
+)
