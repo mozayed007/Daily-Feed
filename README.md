@@ -152,6 +152,15 @@ npm install           # Install deps
 npm run tauri dev     # Dev mode with hot reload
 npm run tauri build   # Release build (creates .msi / .dmg)
 
+# Companion App (Tauri Desktop)
+cd companion
+npm install           # Install deps
+npm run tauri dev     # Dev mode with hot reload
+npm run tauri build   # Release build (creates .msi / .dmg)
+
+# Docker (full stack)
+docker-compose up -d   # Start backend + frontend + db
+
 # General
 make test             # Run all tests
 make clean            # Clean temp files
@@ -202,7 +211,7 @@ make frontend-typecheck
 make frontend-lint
 ```
 
-Frontend unit/integration tests are not implemented yet in this repository; use type-checking and linting as the current frontend quality gates.
+Frontend testing includes Vitest + React Testing Library for unit/integration tests and Playwright for E2E smoke tests.
 
 **Backend Coverage Includes:**
 
@@ -216,15 +225,38 @@ Frontend unit/integration tests are not implemented yet in this repository; use 
 
 ## 🔌 API Overview
 
+### Authentication Endpoints
+
+```text
+POST /api/v1/auth/register             # Create account
+POST /api/v1/auth/login                # Login (returns access + refresh tokens)
+POST /api/v1/auth/refresh              # Refresh access token
+POST /api/v1/auth/forgot-password      # Request password reset
+POST /api/v1/auth/reset-password       # Reset password with token
+POST /api/v1/auth/logout               # Revoke refresh token
+```
+
 ### Core Endpoints
 
 ```text
 GET  /api/v1/health                    # Health check
 GET  /api/v1/articles                  # List articles (with filters)
 GET  /api/v1/articles/{id}             # Get article
+GET  /api/v1/articles/search           # Search articles by title/summary/content
 POST /api/v1/articles/{id}/summarize   # Summarize article
 GET  /api/v1/sources                   # List sources
-POST /api/v1/pipeline/{task_type}      # Run pipeline (fetch/process/digest/full/memory_sync)
+POST /api/v1/pipeline/{task_type}      # Run pipeline (fetch/process/digest/full/trends/cluster/synthesize)
+```
+
+### AI Agent Endpoints
+
+```text
+GET  /api/v1/tools                     # List available agents & graphs
+POST /api/v1/agents/{agent_name}       # Run agent directly (summarize/critique/cluster/synthesize/trends)
+POST /api/v1/articles/cluster          # Cluster articles by topic
+POST /api/v1/articles/synthesize       # Synthesize multi-source coverage
+GET  /api/v1/articles/trends             # Detect emerging trends
+POST /api/v1/articles/{id}/reason      # Explain why article matches user interests
 ```
 
 ### Personalization Endpoints
@@ -235,8 +267,11 @@ GET  /api/v1/users/me                  # Get current user
 GET  /api/v1/users/me/stats            # User statistics
 GET  /api/v1/users/me/preferences      # Get preferences
 PATCH /api/v1/users/me/preferences     # Update preferences
-POST /api/v1/users/me/feedback         # Like/dislike article
+POST /api/v1/users/me/feedback         # Like/dislike/save/dismiss article
+POST /api/v1/users/me/interactions     # Record scroll depth, read time, rating
 POST /api/v1/users/me/digest/generate  # Generate personalized digest
+GET  /api/v1/users/me/digests          # List user digests
+POST /api/v1/users/me/password         # Change password
 ```
 
 ### Scheduler Endpoints
@@ -244,6 +279,9 @@ POST /api/v1/users/me/digest/generate  # Generate personalized digest
 ```text
 GET  /api/v1/scheduler/jobs            # List scheduled jobs
 POST /api/v1/scheduler/jobs            # Create job
+PATCH /api/v1/scheduler/jobs/{id}      # Enable/disable job
+POST /api/v1/scheduler/jobs/{id}/run # Trigger job immediately
+DELETE /api/v1/scheduler/jobs/{id}     # Remove job
 POST /api/v1/scheduler/start           # Start scheduler
 POST /api/v1/scheduler/stop            # Stop scheduler
 ```
@@ -254,8 +292,20 @@ POST /api/v1/scheduler/stop            # Stop scheduler
 POST /api/v1/voice/speak               # TTS: speak text aloud
 POST /api/v1/voice/command             # Run a text command through Jarvis
 GET  /api/v1/voice/status              # Assistant status
+POST /api/v1/voice/start               # Start voice loop
 POST /api/v1/voice/stop                # Stop active voice loop
 WS   /api/v1/ws/voice                  # WebSocket for real-time voice chat (used by companion app)
+```
+
+### Memory & Config Endpoints
+
+```text
+GET  /api/v1/memory/stats              # Memory system statistics
+GET  /api/v1/memory/interests          # User interests from memory analysis
+POST /api/v1/memory/remember/{id}      # Store article in memory
+POST /api/v1/memory/search             # Search memory for similar content
+GET  /api/v1/config                    # Get current configuration
+POST /api/v1/config/init               # Initialize default config file
 ```
 
 ---

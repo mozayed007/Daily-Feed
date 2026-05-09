@@ -135,8 +135,8 @@ export interface ArticleFilterParams {
   processed?: boolean;
   category?: string;
   source?: string;
-  skip?: number;
-  limit?: number;
+  page?: number;
+  page_size?: number;
 }
 
 // Sources
@@ -193,7 +193,7 @@ export interface RecordInteractionRequest {
 
 // Pipeline
 export interface PipelineRequest {
-  task_type: 'fetch' | 'process' | 'digest' | 'full' | 'memory_sync';
+  task_type: 'fetch' | 'process' | 'digest' | 'full' | 'memory_sync' | 'trends' | 'cluster' | 'synthesize';
   params?: Record<string, any>;
 }
 
@@ -201,6 +201,68 @@ export interface PipelineResponse {
   success: boolean;
   task_type: string;
   result: any;
+}
+
+// ============================================================================
+// AI Features
+// ============================================================================
+
+export interface ArticleCluster {
+  cluster_id: string;
+  topic: string;
+  summary: string;
+  article_ids: number[];
+  confidence: number;
+}
+
+export interface ClusterResponse {
+  success: boolean;
+  data: ArticleCluster[];
+  message: string;
+}
+
+export interface MultiSourceSynthesis {
+  topic: string;
+  synthesized_summary: string;
+  sources_covered: string[];
+  consensus_points: string[];
+  conflicting_points: string[];
+  unique_perspectives: string[];
+}
+
+export interface SynthesizeResponse {
+  success: boolean;
+  data: MultiSourceSynthesis;
+  message: string;
+}
+
+export interface TrendResult {
+  topic: string;
+  article_count: number;
+  trend_direction: 'rising' | 'stable' | 'falling' | 'breaking';
+  summary: string;
+  top_sources: string[];
+  urgency: 'high' | 'medium' | 'low';
+}
+
+export interface TrendsResponse {
+  success: boolean;
+  data: TrendResult[];
+  message: string;
+}
+
+export interface DigestReasoning {
+  article_id: number;
+  inclusion_reason: string;
+  relevance_score: number;
+  personalized_for: string;
+  key_insight: string;
+}
+
+export interface ReasoningResponse {
+  success: boolean;
+  data: DigestReasoning;
+  message: string;
 }
 
 // Scheduler
@@ -218,9 +280,10 @@ export interface ScheduledJob {
 
 export interface CreateJobRequest {
   name: string;
-  type: 'cron' | 'interval';
+  type: string; // e.g. "fetch", "process", "digest", "full"
   cron?: string;
   interval?: number;
+  interval_seconds?: number;
   enabled?: boolean;
 }
 
@@ -268,6 +331,46 @@ export interface AppStats {
   active_sources: number;
   total_digests: number;
   memory_units?: number;
+}
+
+// ============================================================================
+// Voice Assistant
+// ============================================================================
+
+export interface SpeakRequest {
+  text: string;
+  voice?: 'jarvis' | 'friday';
+}
+
+export interface CommandRequest {
+  text: string;
+  voice?: 'jarvis' | 'friday';
+}
+
+export interface VoiceStatus {
+  listening: boolean;
+  processing: boolean;
+  speaking: boolean;
+  wake_word_active: boolean;
+  current_voice: string;
+}
+
+export interface AssistantAction {
+  thought: string;
+  response: string;
+  action: string;
+  tool_calls: Array<{
+    tool: string;
+    params: Record<string, any>;
+  }>;
+}
+
+export interface VoiceWebSocketMessage {
+  type: 'audio_chunk' | 'transcript' | 'response' | 'action' | 'error' | 'ping';
+  payload?: any;
+  text?: string;
+  audio?: string; // base64
+  timestamp: string;
 }
 
 // ============================================================================
@@ -323,7 +426,7 @@ export interface ValidationError {
 }
 
 // ============================================================================
-// WebSocket Types (Future)
+// WebSocket Types
 // ============================================================================
 
 export interface WebSocketMessage {

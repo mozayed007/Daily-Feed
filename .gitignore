@@ -67,9 +67,21 @@ Thumbs.db
 dist/
 frontend/dist/
 companion/dist/
+companion/src-tauri/target/
 *.msi
 *.dmg
 *.exe
 
+# ── Test / Coverage ─────────────────────────────────────────
+backend/.coverage
+coverage/
+test-results/
+playwright-report/
+*.lcov
+
 # ── Telemetry / Local IDs ───────────────────────────────────
 telemetry-id
+
+# ── Misc ─────────────────────────────────────────────────────
+*.tmp
+*.temp

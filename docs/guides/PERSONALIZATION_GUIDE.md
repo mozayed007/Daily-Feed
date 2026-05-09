@@ -24,7 +24,8 @@ curl -X POST http://localhost:8000/api/v1/users/onboarding \
 ### 2. Generate Your First Personalized Digest
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/users/me/digest/generate
+curl -X POST http://localhost:8000/api/v1/users/me/digest/generate \
+  -H "Authorization: Bearer <token>"
 ```
 
 Response:
@@ -53,12 +54,15 @@ Response:
 }
 ```
 
+> The digest generation pipeline runs through the pydantic-graph workflow: fetch → process → cluster → synthesize → rank.
+
 ### 3. Provide Feedback
 
 Like an article:
 ```bash
 curl -X POST http://localhost:8000/api/v1/users/me/feedback \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"article_id": 1, "feedback": "like"}'
 ```
 
@@ -66,6 +70,7 @@ Dislike an article:
 ```bash
 curl -X POST http://localhost:8000/api/v1/users/me/feedback \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"article_id": 2, "feedback": "dislike"}'
 ```
 
@@ -73,7 +78,22 @@ Save for later:
 ```bash
 curl -X POST http://localhost:8000/api/v1/users/me/feedback \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"article_id": 3, "feedback": "save"}'
+```
+
+Record an interaction (scroll depth, read time):
+```bash
+curl -X POST http://localhost:8000/api/v1/users/me/interactions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "article_id": 1,
+    "opened": true,
+    "read_duration_seconds": 180,
+    "scroll_depth": 0.85,
+    "rating": 1
+  }'
 ```
 
 ---
@@ -98,16 +118,19 @@ Each article receives a score (0-1) based on:
 # Breaking news mode - prioritize recency
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"freshness_preference": "breaking"}'
 
 # Daily mode - balanced (default)
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"freshness_preference": "daily"}'
 
 # Weekly mode - prioritize quality over speed
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"freshness_preference": "weekly"}'
 ```
 
@@ -120,6 +143,7 @@ curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
 ```bash
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
     "topic_interests": {
       "AI": 0.95,
@@ -136,6 +160,7 @@ curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
 # Never show Crypto or Politics
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
     "exclude_topics": ["Crypto", "Politics"],
     "exclude_sources": ["UnreliableNews"]
@@ -148,16 +173,19 @@ curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
 # Short summaries (1-2 paragraphs)
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"summary_length": "short"}'
 
 # Medium summaries (default)
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"summary_length": "medium"}'
 
 # Long summaries (full analysis)
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"summary_length": "long"}'
 ```
 
@@ -166,7 +194,8 @@ curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
 ## 📈 Viewing Your Stats
 
 ```bash
-curl http://localhost:8000/api/v1/users/me/stats
+curl http://localhost:8000/api/v1/users/me/stats \
+  -H "Authorization: Bearer <token>"
 ```
 
 Response:
@@ -228,6 +257,7 @@ The system ensures you don't get trapped in a filter bubble:
 # Set delivery time and timezone
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
     "delivery_time": "07:30",
     "timezone": "America/New_York"
@@ -240,6 +270,7 @@ curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
 # Reduce to 5 articles per digest
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"daily_article_limit": 5}'
 ```
 
@@ -249,6 +280,7 @@ curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
 # Increase diversity (0.0 - 1.0)
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"diversity_boost": 0.2}'
 ```
 
@@ -258,6 +290,7 @@ curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
 # Stop automatic learning
 curl -X PATCH http://localhost:8000/api/v1/users/me/preferences \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"auto_adjust_interests": false}'
 ```
 

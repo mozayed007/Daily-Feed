@@ -10,31 +10,95 @@ Complete API reference for the Daily Feed backend.
 
 ## 🔐 Authentication
 
-For the PoC/self-hosted version, authentication is optional. The API uses a simple "first user" approach:
+The API uses JWT-based authentication with access tokens (30-minute expiry) and refresh tokens (7-day expiry).
 
-- `GET /users/me` returns the first user in the system
-- For multi-user support, implement JWT tokens
-
-### Future: JWT Authentication (Optional)
-
-```bash
-# Login
-POST /auth/login
+### Register
+```http
+POST /auth/register
 {
   "email": "user@example.com",
-  "password": "secret"
+  "password": "securepassword",
+  "name": "John Doe"
 }
 
 # Response
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
   "token_type": "bearer"
 }
 ```
 
-Include token in headers:
+### Login
+```http
+POST /auth/login
+{
+  "email": "user@example.com",
+  "password": "securepassword"
+}
+
+# Response
+{
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "token_type": "bearer"
+}
 ```
-Authorization: Bearer <token>
+
+### Refresh Token
+```http
+POST /auth/refresh
+{
+  "refresh_token": "eyJ..."
+}
+
+# Response
+{
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "token_type": "bearer"
+}
+```
+
+### Forgot Password
+```http
+POST /auth/forgot-password
+{
+  "email": "user@example.com"
+}
+
+# Response (self-hosted mode returns token directly)
+{
+  "message": "If an account exists with this email, a reset link has been sent.",
+  "reset_token": "eyJ..."
+}
+```
+
+### Reset Password
+```http
+POST /auth/reset-password
+{
+  "token": "eyJ...",
+  "new_password": "newsecurepassword"
+}
+
+# Response
+{
+  "message": "Password reset successfully. Please log in with your new password."
+}
+```
+
+### Logout
+```http
+POST /auth/logout
+{
+  "refresh_token": "eyJ..."
+}
+```
+
+Include token in headers for all authenticated endpoints:
+```
+Authorization: Bearer <access_token>
 ```
 
 ---
@@ -244,17 +308,20 @@ Optional request body:
 ```json
 {
   "params": {
-    "limit": 10
+    "article_ids": [1, 2, 3]
   }
 }
 ```
 
 **Task Types:**
 - `fetch` - Fetch new articles from RSS feeds
-- `process` - Summarize and critique articles
-- `digest` - Generate digest from processed articles
-- `full` - Run complete pipeline
+- `process` - Summarize and critique articles (via graph)
+- `digest` - Generate digest from processed articles (via graph)
+- `full` - Run complete pipeline: fetch → process → digest
 - `memory_sync` - Sync with memory system
+- `trends` - Detect emerging trends
+- `cluster` - Cluster articles by topic
+- `synthesize` - Synthesize multiple sources on a topic
 
 **Response:**
 ```json
@@ -344,11 +411,112 @@ POST /memory/remember/{article_id}
 ```http
 POST /memory/search
 {
-  "query": "artificial intelligence",
   "category": "Technology",
+  "entities": ["AI", "machine learning"],
   "limit": 10
 }
 ```
+
+---
+
+## 🤖 AI Agents
+
+### List Available Agents
+```http
+GET /tools
+```
+
+### Run Agent
+```http
+POST /agents/{agent_name}
+```
+
+**Supported agents:** `summarize`, `critique`, `cluster`, `synthesize`, `trends`
+
+**Example — Summarize:**
+```http
+POST /agents/summarize
+{
+  "article_id": 42,
+  "style": "concise"
+}
+```
+
+**Example — Cluster:**
+```http
+POST /agents/cluster
+{
+  "article_ids": [1, 2, 3, 4, 5]
+}
+```
+
+**Example — Synthesize:**
+```http
+POST /agents/synthesize
+{
+  "topic": "AI Regulation",
+  "article_ids": [10, 11, 12]
+}
+```
+
+**Example — Trends:**
+```http
+POST /agents/trends
+{
+  "article_ids": [1, 2, 3]
+}
+```
+
+---
+
+## 🎙️ Voice Assistant
+
+### Speak Text (TTS)
+```http
+POST /voice/speak
+{
+  "text": "Good morning. Here are your top stories.",
+  "voice": "jarvis"
+}
+```
+
+### Run Text Command
+```http
+POST /voice/command
+{
+  "text": "What are the latest AI headlines?",
+  "voice": "jarvis"
+}
+
+# Response
+{
+  "success": true,
+  "thought": "User wants latest AI news",
+  "response": "Here are the top AI stories today...",
+  "action": "search_web",
+  "tool_calls": [
+    { "tool": "search_web", "params": { "query": "latest AI headlines" } }
+  ]
+}
+```
+
+### Get Assistant Status
+```http
+GET /voice/status
+```
+
+### Start/Stop Voice Loop
+```http
+POST /voice/start
+POST /voice/stop
+```
+
+### Real-Time WebSocket
+```
+WS /ws/voice
+```
+
+Connect for real-time audio streaming (used by the Tauri companion app).
 
 ---
 
@@ -396,7 +564,15 @@ GET /health
 {
   "status": "healthy",
   "version": "1.1.0",
-  "tools_available": ["fetch_articles", "summarize_article"],
+  "ai_providers": {
+    "ollama": { "available": true, "models": ["llama3.2"] },
+    "openai": { "available": false },
+    "anthropic": { "available": false },
+    "gemini": { "available": false }
+  },
+  "litellm_available": true,
+  "agents": ["summarize", "critique", "cluster", "synthesize", "digest_reason", "trend"],
+  "graphs": ["article_processing", "digest_generation", "full_pipeline"],
   "scheduler_running": true
 }
 ```
