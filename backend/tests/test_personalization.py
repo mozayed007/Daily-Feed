@@ -344,9 +344,10 @@ class TestPydanticModels:
     
     def test_user_create_valid(self):
         """Test user creation with valid data."""
-        user = UserCreate(email="test@example.com", name="Test User")
+        user = UserCreate(email="test@example.com", name="Test User", password="Test1234")
         assert user.email == "test@example.com"
         assert user.name == "Test User"
+        assert user.password == "Test1234"
     
     def test_preferences_update_validates_time_format(self):
         """Test that delivery_time must be in HH:MM format."""

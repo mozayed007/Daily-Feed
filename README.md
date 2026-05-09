@@ -52,7 +52,7 @@ daily-feed/
 │   ├── data/              # SQLite database
 │   └── main.py            # Entry point
 │
-├── frontend/              # React + TypeScript + Bun
+├── frontend/              # React + TypeScript + Bun (web dashboard)
 │   ├── src/
 │   │   ├── components/    # UI components
 │   │   ├── hooks/         # React Query hooks
@@ -60,6 +60,10 @@ daily-feed/
 │   │   ├── lib/           # API client, utils
 │   │   └── types/         # TypeScript types
 │   └── package.json
+│
+├── companion/             # Tauri v2 desktop voice assistant (NEW)
+│   ├── src-tauri/         # Rust core (audio, tray, shortcuts, WebSocket)
+│   └── src/               # React + Tailwind webview UI
 │
 └── docs/                  # Documentation
     ├── api/               # API reference & types
@@ -73,10 +77,30 @@ daily-feed/
 
 ### 🤖 Core Intelligence
 
-- **Agent Loop Architecture** - Dynamic task orchestration with memory
-- **Multi-LLM Support** - Ollama, OpenAI, Anthropic, Google Gemini
-- **Smart Summarization** - AI-generated summaries with Pydantic AI
-- **Content Critique** - Quality scoring and filtering
+- **Pydantic-AI Agent System** - Type-safe AI agents with structured outputs (SummaryResult, CritiqueResult, ClusterList, etc.)
+- **LiteLLM Universal Routing** - Single interface to 100+ LLM providers (Ollama, OpenAI, Anthropic, Gemini, Azure, Bedrock, Cohere, Mistral, Groq, and more)
+- **Pydantic-Graph Workflows** - Parallel execution graphs for article processing, digest generation, and full pipeline
+- **Smart Summarization** - AI-generated summaries with structured Pydantic output models
+- **Content Critique** - Quality scoring with structured multi-factor evaluation
+- **Multi-Source Synthesis** - AI merges coverage from multiple sources into unified narratives
+- **Article Clustering** - AI groups related articles by topic with confidence scores
+- **Trend Detection** - AI identifies rising topics, breaking stories, and emerging narratives
+
+### 🎙️ Voice Assistant (Jarvis / Friday) — 100% Local AI
+
+- **Local STT** — `distil-whisper/distil-large-v3` via faster-whisper (CTranslate2)
+  - 49% faster than Whisper large-v3, ~1% WER difference
+  - Apache 2.0 weights on Hugging Face, runs offline on CPU/GPU
+- **Local TTS** — `Kokoro-82M` via ONNX Runtime
+  - 82M param open-weight model, ~300 MB, real-time on CPU
+  - Apache 2.0 weights: `hexgrad/Kokoro-82M` / `onnx-community/Kokoro-82M-v1.0-ONNX`
+  - Voices: `am_adam` (Jarvis), `af_heart` (Friday)
+- **Wake-Word Detection** — "Hey Jarvis" / "Hey Friday" activation
+- **Push-to-Talk** — Alternative hold-to-speak mode
+- **Tool Calling** — pydantic-ai agents call backend tools via natural voice commands
+- **Web Search** — DuckDuckGo integration for live information (no API key)
+- **Dashboard Launcher** — Voice command opens the web frontend when visuals needed
+- **Tauri Desktop Companion** — Standalone always-on-top app with system tray, global shortcuts, and voice interaction
 
 ### 🎯 Personalization Engine
 
@@ -97,6 +121,8 @@ daily-feed/
 ### 🔧 Technical Features
 
 - **FastAPI Backend** - Async, high-performance REST API
+- **Pydantic-AI + LiteLLM** - Type-safe AI agents with universal LLM provider routing
+- **Pydantic-Graph** - Parallel graph-based workflow execution (Beta API)
 - **SQLite Database** - Zero-config local storage with SQLAlchemy
 - **React Frontend** - Modern UI with TanStack Query
 - **Tailwind CSS** - Beautiful, responsive design
@@ -119,6 +145,12 @@ make frontend         # Start dev server (http://localhost:5173)
 make frontend-build   # Production build
 make frontend-lint    # Lint frontend
 make frontend-typecheck # Type-check frontend
+
+# Companion App (Tauri Desktop)
+cd companion
+npm install           # Install deps
+npm run tauri dev     # Dev mode with hot reload
+npm run tauri build   # Release build (creates .msi / .dmg)
 
 # General
 make test             # Run all tests
@@ -216,6 +248,16 @@ POST /api/v1/scheduler/start           # Start scheduler
 POST /api/v1/scheduler/stop            # Stop scheduler
 ```
 
+### Voice Assistant Endpoints
+
+```text
+POST /api/v1/voice/speak               # TTS: speak text aloud
+POST /api/v1/voice/command             # Run a text command through Jarvis
+GET  /api/v1/voice/status              # Assistant status
+POST /api/v1/voice/stop                # Stop active voice loop
+WS   /api/v1/ws/voice                  # WebSocket for real-time voice chat (used by companion app)
+```
+
 ---
 
 ## 🏗️ Architecture
@@ -227,15 +269,29 @@ POST /api/v1/scheduler/stop            # Stop scheduler
 │                                                                │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
 │  │  Frontend   │────│   FastAPI   │────│  SQLite DB  │         │
-│  │  React/Bun  │    │   Backend   │    │  + Models   │         │
+│  │  React/Vite │    │   Backend   │    │  + Models   │         │
 │  └─────────────┘    └──────┬──────┘    └─────────────┘         │
 │                            │                                   │
 │  ┌─────────────────────────┼─────────────────────────┐         │
-│  │                   AGENT LOOP                      │         │
+│  │              PYDANTIC-AI AGENTS                   │         │
 │  ├─────────────────────────┼─────────────────────────┤         │
 │  │  ┌──────────┐  ┌────────┴───────┐  ┌──────────┐   │         │
-│  │  │  Fetch   │  │ Summarizer     │  │  Critic  │   │         │
-│  │  │  Tool    │  │ Agent (LLM)    │  │  Agent   │   │         │
+│  │  │Summarize │  │   Critique     │  │  Cluster │   │         │
+│  │  │  Agent   │  │    Agent       │  │  Agent   │   │         │
+│  │  └──────────┘  └────────────────┘  └──────────┘   │         │
+│  │  ┌──────────┐  ┌────────┴───────┐  ┌──────────┐   │         │
+│  │  │ Synthe-  │  │ Digest Reason  │  │  Trend   │   │         │
+│  │  │  size    │  │    Agent       │  │  Agent   │   │         │
+│  │  └──────────┘  └────────────────┘  └──────────┘   │         │
+│  └───────────────────────────────────────────────────┘         │
+│                            │                                   │
+│  ┌─────────────────────────┼─────────────────────────┐         │
+│  │            PYDANTIC-GRAPH WORKFLOWS               │         │
+│  ├─────────────────────────┼─────────────────────────┤         │
+│  │  ┌──────────┐  ┌────────┴───────┐  ┌──────────┐   │         │
+│  │  │ Article  │  │   Digest       │  │   Full   │   │         │
+│  │  │Processing│  │  Generation    │  │ Pipeline │   │         │
+│  │  │  Graph   │  │    Graph       │  │  Graph   │   │         │
 │  │  └──────────┘  └────────────────┘  └──────────┘   │         │
 │  └───────────────────────────────────────────────────┘         │
 │                                                                │
@@ -252,6 +308,20 @@ POST /api/v1/scheduler/stop            # Stop scheduler
 │  │  • Daily digest        • Auto-fetch                 │       │
 │  └─────────────────────────────────────────────────────┘       │
 │                                                                │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │              LITELLM LLM ROUTING                    │       │
+│  │  • 100+ Providers      • Structured Outputs         │       │
+│  │  • Type-Safe Agents    • Universal API              │       │
+│  └─────────────────────────────────────────────────────┘       │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │              VOICE ASSISTANT (JARVIS/FRIDAY)        │       │
+│  │  • Distil-Whisper STT   • Kokoro-82M TTS (ONNX)     │       │
+│  │  • Wake-word activation   • Push-to-talk mode         │       │
+│  │  • pydantic-ai brain      • WebSocket companion       │       │
+│  │  • HuggingFace weights    • 100% offline              │       │
+│  └─────────────────────────────────────────────────────┘       │
+│                                                                │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -260,10 +330,11 @@ POST /api/v1/scheduler/stop            # Stop scheduler
 ## 📊 Project Stats
 
 ```text
-Backend:     ~10,000 LOC, 45+ files
-Frontend:    React + TypeScript + Tailwind
-Tests:       Comprehensive pytest suite
-API:         35+ endpoints
+Backend:     ~12,000 LOC, 50+ files
+Frontend:    React + TypeScript + Tailwind + Vite
+AI Stack:    Pydantic-AI + Pydantic-Graph + LiteLLM
+Tests:       Comprehensive pytest + Vitest + Playwright E2E
+API:         40+ endpoints
 Docs:        5 comprehensive guides
 ```
 
@@ -282,12 +353,31 @@ Docs:        5 comprehensive guides
 - [x] React + Bun frontend
 - [x] Comprehensive test suite
 
-### 🚧 In Progress
+### 🚧 Completed (Finalized)
 
-- [ ] Onboarding wizard UI
-- [ ] Stats dashboard with charts
-- [ ] Preferences panel
-- [ ] Mobile responsive design
+- [x] Onboarding wizard UI
+- [x] Stats dashboard with charts
+- [x] Preferences panel
+- [x] Mobile responsive design
+- [x] Production-ready auth (password reset, change password, email verification)
+- [x] OAuth login (Google, GitHub)
+- [x] Article search (backend + frontend)
+- [x] Article detail page with interaction tracking
+- [x] Empty states and confirmation dialogs
+- [x] Frontend nginx serving in Docker
+- [x] Frontend unit tests (Vitest + RTL)
+- [x] Backend auth & scheduler tests
+- [x] Playwright E2E smoke tests
+- [x] **Pydantic-AI agents** with structured outputs (summarize, critique, cluster, synthesize, reason, trend)
+- [x] **LiteLLM universal LLM routing** (100+ providers via single interface)
+- [x] **Pydantic-Graph parallel workflows** (article processing, digest generation, full pipeline)
+- [x] **Multi-source synthesis** - AI merges coverage from multiple sources
+- [x] **Article clustering** - AI groups related articles by topic
+- [x] **Trend detection** - AI identifies emerging topics and breaking stories
+- [x] **Smart digest reasoning** - AI explains why articles match user interests
+- [x] **Trends page** - Frontend for AI trend detection
+- [x] **Voice Assistant (Jarvis/Friday)** - Local STT/TTS, wake-word, push-to-talk, tool calling, web search, dashboard launcher
+- [x] **Tauri Desktop Companion** - Standalone Rust + React app with system tray, global shortcuts, CPAL audio, WebSocket backend connection
 
 ---
 

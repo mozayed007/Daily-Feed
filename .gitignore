@@ -1,13 +1,9 @@
-# Dependencies
+# ── Dependencies ───────────────────────────────────────────────
 node_modules/
 frontend/node_modules/
+companion/node_modules/
 
-# Environment
-.env
-backend/.env
-frontend/.env
-
-# Python
+# ── Python ─────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -15,15 +11,65 @@ __pycache__/
 *.so
 .pytest_cache/
 backend/.pytest_cache/
-
-# Build outputs
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
 dist/
-frontend/dist/
+build/
+*.egg
 
-# Runtime data
+# ── Rust ───────────────────────────────────────────────────────
+target/
+Cargo.lock
+*.rs.bk
+
+# ── Environment / Secrets ──────────────────────────────────────
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+companion/.env
+*.pem
+*.key
+secrets/
+
+# ── Runtime Data ───────────────────────────────────────────────
 *.db
+*.db-journal
 backend/data/*.db
+*.sqlite
+*.sqlite3
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# OS / Editor
+# ── OS / Editor ────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.iml
+
+# ── Generated / Cache ─────────────────────────────────────────
+.kilo/
+.kilo/plans/
+.cache/
+.parcel-cache/
+*.tsbuildinfo
+
+# ── Build Outputs ────────────────────────────────────────────
+dist/
+frontend/dist/
+companion/dist/
+*.msi
+*.dmg
+*.exe
+
+# ── Telemetry / Local IDs ───────────────────────────────────
+telemetry-id

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ThumbsUp,
@@ -12,10 +13,14 @@ import {
   RefreshCw,
   ChevronDown,
   ExternalLink,
+  Newspaper,
 } from 'lucide-react';
-import { useArticles, useGenerateDigest, useArticleFeedback } from '../hooks/useArticles';
+import { useArticles, useGenerateDigest, useArticleFeedback, useSearchArticles } from '../hooks/useArticles';
 import { useUserStats } from '../hooks/useUser';
 import type { Article, PersonalizedArticle } from '../types/api';
+import { ArticleCardSkeleton } from '../components/Skeleton';
+import { ErrorDisplay } from '../components/ErrorDisplay';
+import { EmptyState } from '../components/EmptyState';
 
 export function Home() {
   const [showDigest, setShowDigest] = useState(false);
@@ -23,15 +28,48 @@ export function Home() {
   const { data: stats, isError: statsError } = useUserStats();
   const generateDigest = useGenerateDigest();
   const feedback = useArticleFeedback();
+  const [digestError, setDigestError] = useState<string | null>(null);
 
   const handleGenerateDigest = () => {
     generateDigest.mutate();
+    setDigestError(null);
     setShowDigest(true);
   };
 
-  const handleFeedback = (articleId: number, type: 'like' | 'dislike' | 'save') => {
-    feedback.mutate({ article_id: articleId, feedback: type });
+  const handleDigestError = (error: unknown) => {
+    console.error('Digest generation failed:', error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('Network')) {
+        setDigestError('Network connection failed. Please check your internet connection.');
+      } else if (error.message.includes('404') || error.message.includes('Not Found')) {
+        setDigestError('Could not generate digest. Please try again later.');
+      } else if (error.message.includes('500') || error.message.includes('Server Error')) {
+        setDigestError('Server error occurred. Please try again later.');
+      } else {
+        setDigestError('An unexpected error occurred. Please try again.');
+      }
+    } else {
+      setDigestError('An unexpected error occurred. Please try again.');
+    }
   };
+
+  const resetDigestError = () => {
+    setDigestError(null);
+    setShowDigest(false);
+  };
+
+  const handleRetry = () => {
+    generateDigest.mutate();
+    setDigestError(null);
+  };
+
+  const handleFeedback = (articleId: string | number, type: 'like' | 'dislike' | 'save') => {
+    feedback.mutate({ article_id: Number(articleId), feedback: type });
+  };
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data: searchResults, isLoading: searchLoading } = useSearchArticles(searchQuery);
 
   return (
     <div className="space-y-8">
@@ -39,7 +77,7 @@ export function Home() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-8 text-white relative overflow-hidden"
+        className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
@@ -73,12 +111,18 @@ export function Home() {
                 Generate Today&apos;s Digest
               </>
             )}
+            {generateDigest.isError && (
+              <span className="ml-2 text-xs text-rose-500">⚠️</span>
+            )}
+            {digestError && (
+              <span className="ml-2 text-xs text-rose-500">⚠️</span>
+            )}
           </button>
         </div>
       </motion.div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           { icon: BookOpen, label: 'Read', value: stats?.total_articles_read || 0, color: 'blue' },
           { icon: Bookmark, label: 'Saved', value: stats?.total_articles_saved || 0, color: 'amber' },
@@ -90,10 +134,10 @@ export function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + index * 0.05 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
+            className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 dark:border-slate-700 transition-colors"
           >
-            <div className={`w-10 h-10 rounded-xl bg-${stat.color}-50 dark:bg-${stat.color}-900/30 flex items-center justify-center mb-3`}>
-              <stat.icon className={`w-5 h-5 text-${stat.color}-600 dark:text-${stat.color}-400`} />
+            <div className={`w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center mb-3`}>
+              <stat.icon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <p className="text-2xl font-bold text-slate-900 dark:text-white transition-colors">{stat.value}</p>
             <p className="text-sm text-slate-500 dark:text-slate-400 transition-colors">{stat.label}</p>
@@ -178,37 +222,67 @@ export function Home() {
           We couldn&apos;t generate a digest right now. Please try again.
         </div>
       )}
+      {showDigest && digestError && (
+        <ErrorDisplay
+          message={digestError}
+          onRetry={handleRetry}
+        />
+      )}
+
+      {/* Search Bar */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search articles..."
+          className="w-full pl-4 pr-10 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {searchLoading && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
+          </div>
+        )}
+      </div>
 
       {/* Recent Articles */}
       <div>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white transition-colors">Recent Articles</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white transition-colors">
+            {searchQuery ? `Search Results (${searchResults?.total ?? 0})` : 'Recent Articles'}
+          </h2>
           <button className="text-sm text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1 hover:underline">
             View all
             <ChevronDown className="w-4 h-4 -rotate-90" />
           </button>
         </div>
 
-        {articlesLoading ? (
+        {articlesLoading || searchLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 animate-pulse">
-                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4 mb-3" />
-                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
-              </div>
+              <ArticleCardSkeleton key={i} />
             ))}
           </div>
         ) : articlesError || statsError ? (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-300">
-            We couldn&apos;t load your feed right now. Please try again in a moment.
-          </div>
-        ) : !articles?.articles?.length ? (
+          <ErrorDisplay
+            message="We couldn't load your feed right now. Please try again in a moment."
+            onRetry={() => {
+              window.location.reload();
+            }}
+          />
+        ) : searchQuery && !searchResults?.articles?.length ? (
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-            No articles are available yet. Try running a fetch/process pipeline first.
+            No articles found for &quot;{searchQuery}&quot;. Try a different search term.
           </div>
+        ) : !searchQuery && !articles?.articles?.length ? (
+          <EmptyState
+            icon={Newspaper}
+            title="No articles yet"
+            description="Articles will appear once the pipeline fetches and processes them. Try generating a digest or check back later."
+          />
         ) : (
           <div className="space-y-4">
-            {articles?.articles.map((article, index) => (
+            {(searchQuery ? searchResults?.articles : articles?.articles)?.map((article, index) => (
               <ArticleCard
                 key={article.id}
                 article={article}
@@ -226,7 +300,7 @@ export function Home() {
 interface ArticleCardProps {
   article: Article | PersonalizedArticle;
   index: number;
-  onFeedback: (articleId: number, type: 'like' | 'dislike' | 'save') => void;
+  onFeedback: (articleId: string | number, type: 'like' | 'dislike' | 'save') => void;
 }
 
 function ArticleCard({ article, index, onFeedback }: ArticleCardProps) {
@@ -265,9 +339,9 @@ function ArticleCard({ article, index, onFeedback }: ArticleCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all"
+      className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all"
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
         {/* Source Avatar */}
         <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 rounded-xl flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-300 transition-colors">
           {article.source?.slice(0, 2).toUpperCase()}
@@ -292,9 +366,9 @@ function ArticleCard({ article, index, onFeedback }: ArticleCardProps) {
 
           {/* Title */}
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
-            <a href={article.url} target="_blank" rel="noopener noreferrer">
+            <Link to={`/articles/${article.id}`}>
               {article.title}
-            </a>
+            </Link>
           </h3>
 
           {/* Summary */}
@@ -379,10 +453,10 @@ function ActionButton({ onClick, active, activeColor, icon: Icon, label }: Actio
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+      className={`flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-all ${
         active
           ? activeColor
-          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 active:bg-slate-200 dark:active:bg-slate-600'
       }`}
     >
       <Icon className="w-4 h-4" />

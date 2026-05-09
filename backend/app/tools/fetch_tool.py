@@ -7,6 +7,7 @@ import asyncio
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 from urllib.parse import urlparse
+import ipaddress
 import socket
 
 import httpx
@@ -18,12 +19,24 @@ from app.database import Database, ArticleModel, SourceModel
 from app.core.config_manager import get_config
 
 
-# Blocked hosts for SSRF protection
+# Blocked hosts for SSRF protection (exact hostname matches)
 BLOCKED_HOSTS = {
     'localhost', '127.0.0.1', '0.0.0.0', '::1',
     '169.254.169.254',  # AWS metadata
-    '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16',  # Private ranges
 }
+
+# Private/reserved IP ranges to block
+BLOCKED_NETWORKS = [
+    ipaddress.ip_network('10.0.0.0/8'),
+    ipaddress.ip_network('172.16.0.0/12'),
+    ipaddress.ip_network('192.168.0.0/16'),
+    ipaddress.ip_network('127.0.0.0/8'),
+    ipaddress.ip_network('169.254.0.0/16'),  # Link-local
+    ipaddress.ip_network('0.0.0.0/8'),
+    ipaddress.ip_network('fc00::/7'),        # IPv6 unique local
+    ipaddress.ip_network('fe80::/10'),        # IPv6 link-local
+    ipaddress.ip_network('::1/128'),          # IPv6 loopback
+]
 
 MAX_FEED_SIZE = 10 * 1024 * 1024  # 10MB
 FETCH_TIMEOUT = 30  # seconds
@@ -137,23 +150,24 @@ class FetchTool(Tool):
             if not hostname:
                 return False
             
-            # Check blocked hosts
+            # Check blocked hosts (exact match)
             if hostname.lower() in BLOCKED_HOSTS:
                 return False
             
-            # Check IP-based URLs
+            # Check if hostname is already an IP address
             try:
-                ip = socket.getaddrinfo(hostname, None)[0][4][0]
-                # Block private IP ranges
-                if ip.startswith(('10.', '172.16.', '172.17.', '172.18.', 
-                                  '172.19.', '172.20.', '172.21.', '172.22.',
-                                  '172.23.', '172.24.', '172.25.', '172.26.',
-                                  '172.27.', '172.28.', '172.29.', '172.30.',
-                                  '172.31.', '192.168.', '127.')):
-                    return False
-            except socket.gaierror:
-                pass  # DNS resolution failed, will fail on fetch anyway
+                ip = ipaddress.ip_address(hostname)
+                for network in BLOCKED_NETWORKS:
+                    if ip in network:
+                        return False
+                return True
+            except ValueError:
+                pass  # Not an IP, proceed to DNS check
             
+            # For hostnames, we can't safely resolve without potential DNS rebinding,
+            # but we can block anything that looks like an IP literal or octal encoding.
+            # In production, consider a DNS resolver that validates against blocked ranges
+            # before making the actual HTTP request.
             return True
         except Exception:
             return False
@@ -162,6 +176,24 @@ class FetchTool(Tool):
         """Fetch feed content with timeout and size limit."""
         if not self._validate_url(url):
             raise ValueError(f"Invalid or blocked URL: {url}")
+        
+        # DNS resolution check to prevent DNS rebinding attacks
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if hostname:
+            try:
+                addr_info = socket.getaddrinfo(hostname, None)
+                for family, _, _, _, sockaddr in addr_info:
+                    ip_str = sockaddr[0]
+                    try:
+                        ip = ipaddress.ip_address(ip_str)
+                        for network in BLOCKED_NETWORKS:
+                            if ip in network:
+                                raise ValueError(f"Resolved IP {ip_str} for hostname '{hostname}' is in a blocked network")
+                    except ValueError:
+                        continue
+            except socket.gaierror:
+                pass  # DNS resolution failed, will fail on fetch anyway
         
         async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, follow_redirects=True) as client:
             response = await client.get(url, headers={

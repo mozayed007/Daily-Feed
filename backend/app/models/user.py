@@ -18,6 +18,7 @@ from sqlalchemy import (
     ForeignKey, Text, JSON, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
+import re
 from pydantic import BaseModel, Field, field_validator
 
 from app.database import Base
@@ -39,6 +40,13 @@ class UserModel(Base):
     onboarding_completed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime, nullable=True)
+    
+    # Password reset
+    reset_token = Column(String(255), nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
+    email_verified = Column(Boolean, default=False)
+    verification_token = Column(String(255), nullable=True)
+    verification_token_expires = Column(DateTime, nullable=True)
     
     # Relationships
     preferences = relationship("UserPreferencesModel", back_populates="user", uselist=False)
@@ -160,7 +168,28 @@ class UserCreate(BaseModel):
     """User registration request."""
     email: str
     name: str
-    password: Optional[str] = None  # Optional for PoC
+    password: str
+    
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, v):
+            raise ValueError('Invalid email format')
+        return v.lower()
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not re.search(r'[a-z]', v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        if not re.search(r'\d', v):
+            raise ValueError('Password must contain at least one digit')
+        return v
 
 
 class UserResponse(BaseModel):

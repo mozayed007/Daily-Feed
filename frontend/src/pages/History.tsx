@@ -3,6 +3,9 @@ import { motion } from 'framer-motion';
 import { Bookmark, Clock, Calendar, ChevronRight, Filter } from 'lucide-react';
 import { useReadingHistory } from '../hooks/useUser';
 import { useArticles } from '../hooks/useArticles';
+import { ArticleCardSkeleton } from '../components/Skeleton';
+import { ErrorDisplay } from '../components/ErrorDisplay';
+import { EmptyState } from '../components/EmptyState';
 
 interface HistoryItem {
   id: string;
@@ -16,8 +19,13 @@ interface HistoryItem {
 
 export function History() {
   const [activeTab, setActiveTab] = useState<'all' | 'saved'>('all');
-  const { data: history, isLoading: historyLoading, isError: historyError } = useReadingHistory(activeTab === 'saved', 50);
-  const { data: articles, isError: articlesError } = useArticles({ limit: 50 });
+  const { data: history, isLoading: historyLoading, isError: historyError, refetch: refetchHistory } = useReadingHistory(activeTab === 'saved', 50);
+  const { data: articles, isError: articlesError, refetch: refetchArticles } = useArticles({ limit: 50 });
+
+  const handleRetry = () => {
+    refetchHistory();
+    refetchArticles();
+  };
 
   // Merge history with article details
   const historyWithArticles = history?.map((h: HistoryItem) => ({
@@ -40,19 +48,19 @@ export function History() {
         </div>
 
         {/* Tabs */}
-        <div className="flex p-1 bg-slate-100 dark:bg-slate-700 rounded-xl transition-colors">
+        <div className="flex p-1 bg-slate-100 dark:bg-slate-700 rounded-xl transition-colors overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap min-h-[44px] ${
                 activeTab === tab.id
                   ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <tab.icon className="w-4 h-4" />
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -61,29 +69,30 @@ export function History() {
       {/* History List */}
       <div className="space-y-3">
         {historyLoading && (
-          <div className="text-center py-10 text-slate-500 dark:text-slate-400">
-            Loading your reading history...
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <ArticleCardSkeleton key={i} />
+            ))}
           </div>
         )}
 
         {(historyError || articlesError) && (
-          <div className="text-center py-10 bg-white dark:bg-slate-800 rounded-2xl border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-300">
-            Couldn&apos;t load history right now. Please refresh and try again.
-          </div>
+          <ErrorDisplay
+            message="Couldn't load history right now. Please refresh and try again."
+            onRetry={handleRetry}
+          />
         )}
 
-        {historyWithArticles?.length === 0 && (
-          <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 transition-colors">
-            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Filter className="w-8 h-8 text-slate-400 dark:text-slate-500" />
-            </div>
-            <h3 className="font-medium text-slate-900 dark:text-white transition-colors">No articles yet</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 transition-colors">
-              {activeTab === 'saved'
-                ? "Articles you save will appear here"
-                : "Start reading articles to see your history"}
-            </p>
-          </div>
+        {!historyLoading && !historyError && historyWithArticles?.length === 0 && (
+          <EmptyState
+            icon={activeTab === 'saved' ? Bookmark : Clock}
+            title={activeTab === 'saved' ? 'No saved articles' : 'No reading history'}
+            description={
+              activeTab === 'saved'
+                ? 'Articles you save will appear here. Start exploring your feed!'
+                : 'Start reading articles to see your history. Every read counts!'
+            }
+          />
         )}
 
         {!historyLoading && !historyError && historyWithArticles?.map((item: HistoryItem & { article?: { id: number; title?: string; source?: string; category?: string } }, index: number) => (
@@ -92,7 +101,7 @@ export function History() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all cursor-pointer group"
+            className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-all cursor-pointer group"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">

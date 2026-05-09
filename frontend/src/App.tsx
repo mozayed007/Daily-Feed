@@ -8,15 +8,25 @@ import { Onboarding } from './pages/Onboarding';
 import { Stats } from './pages/Stats';
 import { Preferences } from './pages/Preferences';
 import { History } from './pages/History';
-import { useUser } from './hooks/useUser';
+import { Scheduler } from './pages/Scheduler';
+import { ArticleDetail } from './pages/ArticleDetail';
+import { Trends } from './pages/Trends';
+import { VoiceCompanion } from './pages/VoiceCompanion';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
+import { NotFound } from './pages/NotFound';
+import { Profile } from './pages/Profile';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
+import { OAuthCallback } from './pages/OAuthCallback';
 
-// Protected route component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading } = useUser();
+  const { isAuthenticated, loading, user } = useAuth();
   
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
@@ -24,13 +34,86 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   
-  // For PoC: redirect to onboarding if not completed
-  // In production, check auth token
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
   if (!user?.onboarding_completed) {
     return <Navigate to="/onboarding" replace />;
   }
   
   return <>{children}</>;
+}
+
+function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, loading, user } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+  
+  if (isAuthenticated) {
+    if (!user?.onboarding_completed) {
+      return <Navigate to="/onboarding" replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={
+        <PublicOnlyRoute>
+          <Login />
+        </PublicOnlyRoute>
+      } />
+      <Route path="/register" element={
+        <PublicOnlyRoute>
+          <Register />
+        </PublicOnlyRoute>
+      } />
+      <Route path="/forgot-password" element={
+        <PublicOnlyRoute>
+          <ForgotPassword />
+        </PublicOnlyRoute>
+      } />
+      <Route path="/reset-password" element={
+        <PublicOnlyRoute>
+          <ResetPassword />
+        </PublicOnlyRoute>
+      } />
+      <Route path="/auth/callback" element={<OAuthCallback />} />
+      <Route path="/onboarding" element={<Onboarding />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/articles/:id" element={<ArticleDetail />} />
+                <Route path="/trends" element={<Trends />} />
+                <Route path="/voice" element={<VoiceCompanion />} />
+                <Route path="/stats" element={<Stats />} />
+                <Route path="/preferences" element={<Preferences />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/scheduler" element={<Scheduler />} />
+                <Route path="/profile" element={<Profile />} />
+              </Routes>
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
 }
 
 function App() {
@@ -40,24 +123,9 @@ function App() {
         <ThemeProvider>
           <ToastProvider>
             <BrowserRouter>
-              <Routes>
-                <Route path="/onboarding" element={<Onboarding />} />
-                <Route
-                  path="/*"
-                  element={
-                    <ProtectedRoute>
-                      <Layout>
-                        <Routes>
-                          <Route path="/" element={<Home />} />
-                          <Route path="/stats" element={<Stats />} />
-                          <Route path="/preferences" element={<Preferences />} />
-                          <Route path="/history" element={<History />} />
-                        </Routes>
-                      </Layout>
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
+              <AuthProvider>
+                <AppRoutes />
+              </AuthProvider>
             </BrowserRouter>
           </ToastProvider>
         </ThemeProvider>

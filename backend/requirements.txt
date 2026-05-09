@@ -23,10 +23,11 @@ httpx>=0.25.0  # For async HTTP with timeouts
 aiohttp>=3.9.1
 requests>=2.31.0
 
-# AI/LLM
-ollama>=0.1.0
-openai>=1.0.0
-anthropic>=0.8.0
+# AI/LLM - Unified via litellm through pydantic-ai
+pydantic-ai>=0.0.21
+pydantic-graph>=0.0.21
+pydantic-ai-litellm>=1.0.0
+litellm>=1.59.0
 
 # Utilities
 pyyaml>=6.0
@@ -35,6 +36,17 @@ python-jose[cryptography]>=3.3.0
 structlog>=23.2.0
 tenacity>=8.2.3  # Retry logic
 validators>=0.22.0  # URL validation
+slowapi>=0.1.9  # Rate limiting
+
+# Voice Assistant (Jarvis / Friday) — Local AI models from Hugging Face
+faster-whisper>=1.0.0        # STT engine (Distil-Whisper via CTranslate2)
+huggingface-hub>=0.21      # Download Kokoro & Distil-Whisper weights from HF
+onnxruntime>=1.17            # Kokoro ONNX inference (local, no cloud)
+soundfile>=0.12              # Audio file I/O for Kokoro output
+sounddevice>=0.5.0           # Microphone + speaker audio I/O
+duckduckgo-search>=8.0.0     # Free web search, no API key
+numpy>=1.26.0                # Audio array manipulation
+edge-tts>=7.0.0              # Fallback TTS (if Kokoro ONNX fails)
 
 # Testing
 pytest>=7.4.3
@@ -46,3 +58,4 @@ httpx>=0.25.0
 black>=23.11.0
 isort>=5.12.0
 mypy>=1.7.0
+passlib[bcrypt]

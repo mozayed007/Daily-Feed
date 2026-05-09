@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { setAccessToken, setRefreshToken } from '../lib/auth';
 import type { 
   User, 
   UserStats, 
-  UserPreferences,
   UserPreferencesResponse,
   UpdatePreferencesRequest,
   OnboardingRequest,
@@ -26,11 +26,11 @@ export function useUser() {
 }
 
 // Get user stats
-export function useUserStats() {
+export function useUserStats(days = 7) {
   return useQuery({
-    queryKey: [...USER_QUERY_KEY, 'stats'],
+    queryKey: [...USER_QUERY_KEY, 'stats', days],
     queryFn: async () => {
-      const { data } = await api.get<UserStats>('/users/me/stats');
+      const { data } = await api.get<UserStats>(`/users/me/stats?days=${days}`);
       return data;
     },
   });
@@ -95,6 +95,75 @@ export function useReadingHistory(savedOnly = false, limit = 20) {
     queryFn: async () => {
       const { data } = await api.get(`/users/me/history?limit=${limit}&saved_only=${savedOnly}`);
       return data;
+    },
+  });
+}
+
+// Reset preferences
+export function useResetPreferences() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async () => {
+      await api.post('/users/me/preferences/reset');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: USER_PREFS_QUERY_KEY });
+    },
+  });
+}
+
+// Change password
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: async (data: { current_password: string; new_password: string }) => {
+      const { data: responseData } = await api.post('/users/me/password', data);
+      return responseData;
+    },
+  });
+}
+
+// Email verification
+export function useSendVerificationEmail() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post('/auth/verify-email');
+      return data;
+    },
+  });
+}
+
+export function useConfirmEmail() {
+  return useMutation({
+    mutationFn: async (token: string) => {
+      const { data } = await api.post('/auth/verify-email/confirm', { token });
+      return data;
+    },
+  });
+}
+
+// OAuth
+export function useOAuthUrl() {
+  return useMutation({
+    mutationFn: async (provider: 'google' | 'github') => {
+      const { data } = await api.get(`/auth/oauth/${provider}`);
+      return data as { auth_url: string; state: string };
+    },
+  });
+}
+
+export function useOAuthCallback() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ code, provider }: { code: string; provider: string }) => {
+      const { data } = await api.post('/auth/oauth/callback', { code, provider });
+      return data as { access_token: string; refresh_token: string; token_type: string };
+    },
+    onSuccess: (data) => {
+      setAccessToken(data.access_token);
+      setRefreshToken(data.refresh_token);
+      queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
     },
   });
 }

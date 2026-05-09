@@ -3,7 +3,7 @@ import os
 sys.path.append(os.getcwd())
 
 try:
-    import app.main
+    import main
     print("Import successful")
 except Exception as e:
     import traceback

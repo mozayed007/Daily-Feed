@@ -6,7 +6,6 @@ import {
   Clock,
   Type,
   Filter,
-  Shield,
   Zap,
   ChevronRight,
   Check,
@@ -14,7 +13,9 @@ import {
   Trash2,
   Plus,
 } from 'lucide-react';
-import { usePreferences, useUpdatePreferences } from '../hooks/useUser';
+import { usePreferences, useUpdatePreferences, useResetPreferences } from '../hooks/useUser';
+import { useSources } from '../hooks/useSources';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const TOPICS = [
   { id: 'AI', label: 'AI', color: 'bg-violet-500' },
@@ -27,13 +28,14 @@ const TOPICS = [
   { id: 'Entertainment', label: 'Entertainment', color: 'bg-fuchsia-500' },
 ];
 
-const SOURCES = [
+const SOURCES_FALLBACK = [
   { id: 'TechCrunch', name: 'TechCrunch', icon: 'TC' },
   { id: 'Hacker News', name: 'Hacker News', icon: 'HN' },
   { id: 'The Verge', name: 'The Verge', icon: 'TV' },
   { id: 'Bloomberg', name: 'Bloomberg', icon: 'BB' },
   { id: 'WSJ', name: 'Wall Street Journal', icon: 'WSJ' },
   { id: 'Science Daily', name: 'Science Daily', icon: 'SD' },
+  { id: 'Smol AI News', name: 'Smol AI News', icon: 'SA' },
 ];
 
 const SUMMARY_LENGTHS = [
@@ -51,10 +53,24 @@ const FRESHNESS_OPTIONS = [
 export function Preferences() {
   const { data: preferences, isLoading, isError } = usePreferences();
   const updatePreferences = useUpdatePreferences();
+  const resetPreferences = useResetPreferences();
+  const { data: sourcesData, isLoading: sourcesLoading } = useSources();
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [newBlockedTopic, setNewBlockedTopic] = useState('');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const topicUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dailyLimitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getSources = () => {
+    if (sourcesData && sourcesData.length > 0) {
+      return sourcesData.map((source) => ({
+        id: String(source.id),
+        name: source.name,
+        icon: source.name.substring(0, 2).toUpperCase(),
+      }));
+    }
+    return SOURCES_FALLBACK;
+  };
 
   useEffect(() => {
     return () => {
@@ -194,19 +210,31 @@ export function Preferences() {
           >
             <button
               onClick={() => setActiveSection(activeSection === section.id ? null : section.id)}
-              className="w-full flex items-center justify-between p-6 hover:bg-slate-50 transition-colors"
+              className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
             >
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl bg-${section.color}-50 dark:bg-${section.color}-900/30`}>
-                  <section.icon className={`w-5 h-5 text-${section.color}-600 dark:text-${section.color}-400`} />
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className={`p-2.5 sm:p-3 rounded-xl ${
+                  section.color === 'violet' ? 'bg-violet-50 dark:bg-violet-900/30' :
+                  section.color === 'blue' ? 'bg-blue-50 dark:bg-blue-900/30' :
+                  section.color === 'emerald' ? 'bg-emerald-50 dark:bg-emerald-900/30' :
+                  section.color === 'rose' ? 'bg-rose-50 dark:bg-rose-900/30' :
+                  'bg-amber-50 dark:bg-amber-900/30'
+                }`}>
+                  <section.icon className={`w-5 h-5 ${
+                    section.color === 'violet' ? 'text-violet-600 dark:text-violet-400' :
+                    section.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+                    section.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
+                    section.color === 'rose' ? 'text-rose-600 dark:text-rose-400' :
+                    'text-amber-600 dark:text-amber-400'
+                  }`} />
                 </div>
                 <div className="text-left">
                   <h3 className="font-semibold text-slate-900 dark:text-white transition-colors">{section.title}</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 transition-colors">{section.description}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 transition-colors hidden sm:block">{section.description}</p>
                 </div>
               </div>
               <ChevronRight
-                className={`w-5 h-5 text-slate-400 transition-transform ${
+                className={`w-5 h-5 text-slate-400 transition-transform flex-shrink-0 ${
                   activeSection === section.id ? 'rotate-90' : ''
                 }`}
               />
@@ -218,28 +246,28 @@ export function Preferences() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="border-t border-slate-100"
+                className="border-t border-slate-100 dark:border-slate-700"
               >
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   {section.id === 'interests' && (
                     <div className="space-y-4">
                       {TOPICS.map((topic) => {
                         const value = Math.round((preferences?.topic_interests?.[topic.id] || 0.5) * 100);
                         return (
-                          <div key={topic.id} className="flex items-center gap-4">
-                            <span className="w-24 text-sm font-medium text-slate-700">
+                          <div key={topic.id} className="flex items-center gap-2 sm:gap-4">
+                            <span className="w-16 sm:w-24 text-sm font-medium text-slate-700 dark:text-slate-300">
                               {topic.label}
                             </span>
-                            <div className="flex-1 flex items-center gap-3">
+                            <div className="flex-1 flex items-center gap-2 sm:gap-3">
                               <input
                                 type="range"
                                 min="0"
                                 max="100"
                                 value={value}
                                 onChange={(e) => handleInterestChange(topic.id, parseInt(e.target.value))}
-                                className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                className="flex-1 h-2.5 sm:h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                               />
-                              <span className="w-12 text-sm font-medium text-slate-600 text-right">
+                              <span className="w-10 sm:w-12 text-sm font-medium text-slate-600 dark:text-slate-400 text-right">
                                 {value}%
                               </span>
                             </div>
@@ -250,31 +278,37 @@ export function Preferences() {
                   )}
 
                   {section.id === 'sources' && (
-                    <div className="grid grid-cols-2 gap-3">
-                      {SOURCES.map((source) => {
-                        const isPreferred = preferences?.source_preferences?.[source.id] === 1.0;
-                        return (
-                          <button
-                            key={source.id}
-                            onClick={() => handleToggleSource(source.id)}
-                            className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-                              isPreferred
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-slate-200 hover:border-slate-300'
-                            }`}
-                          >
-                            <div
-                              className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
-                                isPreferred ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {sourcesLoading ? (
+                        <div className="col-span-2 flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                        </div>
+                      ) : (
+                        getSources().map((source) => {
+                          const isPreferred = preferences?.source_preferences?.[source.id] === 1.0;
+                          return (
+                            <button
+                              key={source.id}
+                              onClick={() => handleToggleSource(source.id)}
+                              className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                                isPreferred
+                                  ? 'border-blue-500 bg-blue-50'
+                                  : 'border-slate-200 hover:border-slate-300'
                               }`}
                             >
-                              {source.icon}
-                            </div>
-                            <span className="font-medium text-slate-900">{source.name}</span>
-                            {isPreferred && <Check className="w-4 h-4 text-blue-600 ml-auto" />}
-                          </button>
-                        );
-                      })}
+                              <div
+                                className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
+                                  isPreferred ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                                }`}
+                              >
+                                {source.icon}
+                              </div>
+                              <span className="font-medium text-slate-900">{source.name}</span>
+                              {isPreferred && <Check className="w-4 h-4 text-blue-600 ml-auto" />}
+                            </button>
+                          );
+                        })
+                      )}
                     </div>
                   )}
 
@@ -513,11 +547,29 @@ export function Preferences() {
               This will reset all your preferences to default values. Your reading history will be preserved.
             </p>
           </div>
-          <button className="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors text-sm font-medium">
-            Reset
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            disabled={resetPreferences.isPending}
+            className="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {resetPreferences.isPending ? 'Resetting...' : 'Reset'}
           </button>
         </div>
       </motion.div>
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Reset Preferences"
+        message="This will reset all your preferences to default values. Your reading history will be preserved. This action cannot be undone."
+        confirmLabel="Reset"
+        variant="warning"
+        onConfirm={() => {
+          resetPreferences.mutate();
+          setShowResetConfirm(false);
+        }}
+        onCancel={() => setShowResetConfirm(false)}
+      />
     </div>
   );
 }
+

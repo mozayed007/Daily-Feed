@@ -23,6 +23,11 @@ class JobStatus(Enum):
     FAILED = "failed"
 
 
+def _utcnow() -> datetime:
+    """Return timezone-aware UTC datetime."""
+    return datetime.now(timezone.utc)
+
+
 @dataclass
 class ScheduledJob:
     """A scheduled job."""
@@ -39,7 +44,7 @@ class ScheduledJob:
     run_count: int = 0
     status: JobStatus = JobStatus.PENDING
     error_count: int = 0
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert job to dictionary representation."""
         return {
@@ -109,8 +114,8 @@ class CronParser:
     def get_next_run(cron_expr: str, after: Optional[datetime] = None) -> datetime:
         """Calculate the next run time for a cron expression."""
         fields = CronParser.parse(cron_expr)
-        after = after or datetime.now(timezone.utc).replace(tzinfo=None)
-        
+        after = after or _utcnow()
+
         # Start from next minute
         candidate = after.replace(second=0, microsecond=0) + timedelta(minutes=1)
         
@@ -209,12 +214,17 @@ class Scheduler:
             callback=callback,
             args=args,
             kwargs=kwargs or {},
-            next_run=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=seconds)
+            next_run=_utcnow() + timedelta(seconds=seconds)
         )
         
         self.jobs[job_id] = job
         logger.info(f"Added interval job '{name}' (every {seconds}s)")
         return job
+    
+    @property
+    def is_running(self) -> bool:
+        """Whether the scheduler loop is currently running."""
+        return self._running
     
     def remove_job(self, job_id: str) -> bool:
         """Remove a scheduled job."""
@@ -280,7 +290,7 @@ class Scheduler:
     
     async def _check_and_run_jobs(self):
         """Check for due jobs and execute them."""
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = _utcnow()
         
         for job in self.jobs.values():
             if not job.enabled:
@@ -296,7 +306,7 @@ class Scheduler:
     async def _execute_job(self, job: ScheduledJob):
         """Execute a scheduled job."""
         job.status = JobStatus.RUNNING
-        job.last_run = datetime.now(timezone.utc).replace(tzinfo=None)
+        job.last_run = _utcnow()
         
         try:
             logger.info(f"Executing job '{job.name}'")
@@ -318,9 +328,9 @@ class Scheduler:
         
         # Calculate next run time
         if job.cron:
-            job.next_run = CronParser.get_next_run(job.cron, after=datetime.now(timezone.utc).replace(tzinfo=None))
+            job.next_run = CronParser.get_next_run(job.cron, after=_utcnow())
         elif job.interval_seconds:
-            job.next_run = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=job.interval_seconds)
+            job.next_run = _utcnow() + timedelta(seconds=job.interval_seconds)
         
         job.status = JobStatus.PENDING
     
@@ -338,7 +348,7 @@ class Scheduler:
             name="Daily Digest",
             cron=cron_expr,
             callback=pipeline_callback,
-            kwargs={"task": "digest"},
+            kwargs={"task_type": "digest"},
             job_id="daily_digest"
         )
         
@@ -348,7 +358,7 @@ class Scheduler:
                 name="Auto Fetch",
                 seconds=config.pipeline.auto_fetch_interval_minutes * 60,
                 callback=pipeline_callback,
-                kwargs={"task": "fetch"},
+                kwargs={"task_type": "fetch"},
                 job_id="auto_fetch"
             )
         

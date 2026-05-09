@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      working-directory: backend
+      run: |
+        pip install -r requirements.txt
+    
+    - name: Run backend tests
+      working-directory: backend
+      run: pytest -v --cov
+    
+    - name: Upload coverage
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./backend/coverage.xml
+        flags: backend
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+    
+    - name: Install dependencies
+      working-directory: frontend
+      run: bun install
+    
+    - name: Type check
+      working-directory: frontend
+      run: bun run typecheck
+    
+    - name: Lint
+      working-directory: frontend
+      run: bun run lint
+    
+    - name: Build
+      working-directory: frontend
+      run: bun run build
+
+  backend-lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      working-directory: backend
+      run: pip install black isort mypy
+    
+    - name: Run black
+      working-directory: backend
+      run: black --check app/
+    
+    - name: Run isort
+      working-directory: backend
+      run: isort --check-only app/

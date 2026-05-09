@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ChevronRight, 
   ChevronLeft, 
   Sparkles, 
   Newspaper, 
@@ -14,8 +13,10 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useOnboarding } from '../hooks/useUser';
+import { useSources } from '../hooks/useSources';
+import { useCategories } from '../hooks/useCategories';
 
-const TOPICS = [
+const TOPICS_FALLBACK = [
   { id: 'AI', label: 'AI', icon: '🤖', color: 'from-violet-500 to-purple-600' },
   { id: 'Technology', label: 'Technology', icon: '💻', color: 'from-cyan-500 to-blue-600' },
   { id: 'Business', label: 'Business', icon: '💼', color: 'from-amber-500 to-orange-600' },
@@ -26,7 +27,7 @@ const TOPICS = [
   { id: 'Entertainment', label: 'Entertainment', icon: '🎬', color: 'from-fuchsia-500 to-purple-600' },
 ];
 
-const SOURCES = [
+const SOURCES_FALLBACK = [
   { id: 'TechCrunch', name: 'TechCrunch', category: 'Tech' },
   { id: 'Hacker News', name: 'Hacker News', category: 'Tech' },
   { id: 'The Verge', name: 'The Verge', category: 'Tech' },
@@ -41,10 +42,57 @@ const SUMMARY_LENGTHS = [
   { id: 'long', label: 'Detailed', desc: 'Full analysis', time: '~5 min read' },
 ];
 
+const CATEGORY_COLORS: Record<string, string> = {
+  AI: 'from-violet-500 to-purple-600',
+  Technology: 'from-cyan-500 to-blue-600',
+  Business: 'from-amber-500 to-orange-600',
+  Science: 'from-emerald-500 to-green-600',
+  Crypto: 'from-orange-500 to-red-600',
+  Health: 'from-rose-500 to-pink-600',
+  Politics: 'from-slate-500 to-slate-600',
+  Entertainment: 'from-fuchsia-500 to-purple-600',
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  AI: '🤖',
+  Technology: '💻',
+  Business: '💼',
+  Science: '🔬',
+  Crypto: '₿',
+  Health: '❤️',
+  Politics: '🏛️',
+  Entertainment: '🎬',
+};
+
 export function Onboarding() {
   const navigate = useNavigate();
   const onboarding = useOnboarding();
+  const { data: sourcesData, isLoading: sourcesLoading } = useSources();
+  const { data: categoriesData, isLoading: categoriesLoading } = useCategories();
   const [step, setStep] = useState(0);
+
+  const getTopics = () => {
+    if (categoriesData && categoriesData.length > 0) {
+      return categoriesData.map((cat) => ({
+        id: cat.name,
+        label: cat.name,
+        icon: CATEGORY_ICONS[cat.name] || '📰',
+        color: CATEGORY_COLORS[cat.name] || 'from-gray-500 to-gray-600',
+      }));
+    }
+    return TOPICS_FALLBACK;
+  };
+
+  const getSources = () => {
+    if (sourcesData && sourcesData.length > 0) {
+      return sourcesData.map((source) => ({
+        id: String(source.id),
+        name: source.name,
+        category: source.category || 'General',
+      }));
+    }
+    return SOURCES_FALLBACK;
+  };
   const [formData, setFormData] = useState({
     name: '',
     interests: [] as string[],
@@ -98,14 +146,14 @@ export function Onboarding() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4 transition-colors">
       <div className="w-full max-w-2xl">
         {/* Progress Header */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <Newspaper className="w-6 h-6 text-white" />
+              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <Newspaper className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white transition-colors">Daily Feed</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white transition-colors">Daily Feed</h1>
                 <p className="text-sm text-slate-500 dark:text-slate-400 transition-colors">Personalized News</p>
               </div>
             </div>
@@ -114,15 +162,15 @@ export function Onboarding() {
                 <div
                   key={i}
                   className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                    i === step ? 'w-8 bg-blue-600' : i < step ? 'bg-blue-600' : 'bg-slate-300'
+                    i === step ? 'w-6 sm:w-8 bg-blue-600' : i < step ? 'bg-blue-600' : 'bg-slate-300'
                   }`}
                 />
               ))}
             </div>
           </div>
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white transition-colors">{steps[step].title}</h2>
-            <p className="text-slate-500 dark:text-slate-400 transition-colors">{steps[step].description}</p>
+            <h2 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white transition-colors">{steps[step].title}</h2>
+            <p className="text-slate-500 dark:text-slate-400 transition-colors text-sm sm:text-base">{steps[step].description}</p>
           </div>
         </div>
 
@@ -134,7 +182,7 @@ export function Onboarding() {
           exit={{ opacity: 0, x: -20 }}
           className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 overflow-hidden transition-colors"
         >
-          <div className="p-8">
+          <div className="p-6 sm:p-8">
             <AnimatePresence mode="wait">
               {step === 0 && (
                 <motion.div
@@ -186,7 +234,7 @@ export function Onboarding() {
                 </motion.div>
               )}
 
-              {step === 1 && (
+{step === 1 && (
                 <motion.div
                   key="interests"
                   initial={{ opacity: 0 }}
@@ -197,8 +245,13 @@ export function Onboarding() {
                   <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">
                     Select at least 3 topics you're interested in
                   </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {TOPICS.map((topic) => {
+                  {categoriesLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                      {getTopics().map((topic) => {
                       const selected = formData.interests.includes(topic.id);
                       return (
                         <motion.button
@@ -233,7 +286,8 @@ export function Onboarding() {
                         </motion.button>
                       );
                     })}
-                  </div>
+                    </div>
+                  )}
                   <p className="text-center text-sm text-slate-500">
                     Selected: {formData.interests.length} topics
                   </p>
@@ -251,26 +305,31 @@ export function Onboarding() {
                   <p className="text-sm text-slate-500 text-center mb-4">
                     Choose your preferred news sources
                   </p>
-                  {SOURCES.map((source) => {
-                    const selected = formData.sources.includes(source.id);
-                    return (
-                      <motion.button
-                        key={source.id}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                        onClick={() => {
-                          setFormData({
-                            ...formData,
-                            sources: selected
-                              ? formData.sources.filter((s) => s !== source.id)
-                              : [...formData.sources, source.id],
-                          });
-                        }}
-                        className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
-                          selected
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-slate-200 hover:border-slate-300 bg-white'
-                        }`}
+                  {sourcesLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                    </div>
+                  ) : (
+                    getSources().map((source) => {
+                      const selected = formData.sources.includes(source.id);
+                      return (
+                        <motion.button
+                          key={source.id}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              sources: selected
+                                ? formData.sources.filter((s) => s !== source.id)
+                                : [...formData.sources, source.id],
+                            });
+                          }}
+                          className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                            selected
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-slate-200 hover:border-slate-300 bg-white'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -286,7 +345,8 @@ export function Onboarding() {
                         {selected && <Check className="w-5 h-5 text-blue-600" />}
                       </motion.button>
                     );
-                  })}
+                  })
+                  )}
                 </motion.div>
               )}
 
@@ -298,12 +358,12 @@ export function Onboarding() {
                   exit={{ opacity: 0 }}
                   className="space-y-6"
                 >
-                  {/* Summary Length */}
+                    {/* Summary Length */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-3">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
                       Summary Length
                     </label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
                       {SUMMARY_LENGTHS.map((length) => (
                         <button
                           key={length.id}
@@ -313,14 +373,14 @@ export function Onboarding() {
                               summaryLength: length.id as 'short' | 'medium' | 'long',
                             })
                           }
-                          className={`p-4 rounded-xl border-2 text-center transition-all ${
+                          className={`p-3 sm:p-4 rounded-xl border-2 text-center transition-all ${
                             formData.summaryLength === length.id
                               ? 'border-blue-500 bg-blue-50'
                               : 'border-slate-200 hover:border-slate-300'
                           }`}
                         >
-                          <p className="font-medium text-slate-900">{length.label}</p>
-                          <p className="text-xs text-slate-500 mt-1">{length.desc}</p>
+                          <p className="font-medium text-sm sm:text-base text-slate-900">{length.label}</p>
+                          <p className="text-xs text-slate-500 mt-0.5 hidden sm:block">{length.desc}</p>
                           <p className="text-xs text-slate-400">{length.time}</p>
                         </button>
                       ))}
@@ -365,7 +425,7 @@ export function Onboarding() {
           </div>
 
           {/* Footer */}
-          <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+          <div className="px-4 sm:px-8 py-4 sm:py-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3">
             {onboarding.isError && (
               <p className="text-sm text-rose-600">
                 We couldn&apos;t save onboarding right now. Please try again.
@@ -374,10 +434,10 @@ export function Onboarding() {
             <button
               onClick={handleBack}
               disabled={step === 0}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-lg font-medium transition-colors ${
                 step === 0
                   ? 'text-slate-400 cursor-not-allowed'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  : 'text-slate-600 hover:bg-slate-100 active:bg-slate-200'
               }`}
             >
               <ChevronLeft className="w-4 h-4" />
@@ -387,9 +447,9 @@ export function Onboarding() {
             <button
               onClick={handleNext}
               disabled={!canProceed()}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all ${
+              className={`flex items-center gap-2 px-5 sm:px-6 py-2.5 min-h-[44px] rounded-xl font-medium transition-all ${
                 canProceed()
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/25'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 shadow-lg shadow-blue-500/25'
                   : 'bg-slate-200 text-slate-400 cursor-not-allowed'
               }`}
             >
