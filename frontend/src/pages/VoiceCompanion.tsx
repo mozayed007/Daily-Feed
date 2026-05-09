@@ -137,7 +137,7 @@ export function VoiceCompanion() {
         setShowDashboardAlert(true);
         setTimeout(() => setShowDashboardAlert(false), 5000);
       }
-    } catch (e) {
+    } catch {
       setIsProcessing(false);
       addMessage('assistant', 'Sorry, I had trouble processing that.');
     }

@@ -44,9 +44,18 @@ class Settings(BaseSettings):
     ANTHROPIC_MODEL: str = "claude-3-haiku-20240307"
 
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
     # OpenAI-compatible Gemini endpoint
     GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+    # Fireworks AI
+    FIREWORKS_API_KEY: Optional[str] = None
+    FIREWORKS_MODEL: str = "accounts/fireworks/routers/kimi-k2p6-turbo"
+    FIREWORKS_BASE_URL: str = "https://api.fireworks.ai/inference/v1"
+
+    # Agent Capabilities (provider-adaptive tools)
+    ENABLE_WEB_SEARCH: bool = True
+    ENABLE_URL_FETCH: bool = True
 
     # Telegram
     TELEGRAM_BOT_TOKEN: Optional[str] = None

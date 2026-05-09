@@ -16,6 +16,7 @@ class LLMProvider(str, Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
+    FIREWORKS = "fireworks"
 
 
 @dataclass
@@ -220,6 +221,17 @@ class ConfigManager:
             config.llm.api_key = os.getenv("GEMINI_API_KEY")
             if config.llm.provider == LLMProvider.OLLAMA:
                 config.llm.provider = LLMProvider.GEMINI
+
+        if os.getenv("GEMINI_MODEL"):
+            config.llm.model = os.getenv("GEMINI_MODEL")
+
+        if os.getenv("FIREWORKS_API_KEY"):
+            config.llm.api_key = os.getenv("FIREWORKS_API_KEY")
+            if config.llm.provider == LLMProvider.OLLAMA:
+                config.llm.provider = LLMProvider.FIREWORKS
+
+        if os.getenv("FIREWORKS_MODEL"):
+            config.llm.model = os.getenv("FIREWORKS_MODEL")
 
         # Database
         if os.getenv(f"{self.ENV_PREFIX}DATABASE_URL"):
