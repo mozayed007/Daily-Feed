@@ -21,7 +21,7 @@ lxml>=4.9.3
 # HTTP Client
 httpx>=0.25.0  # For async HTTP with timeouts
 aiohttp>=3.13.5
-requests>=2.31.0
+requests>=2.33.1
 
 # AI/LLM - Unified via litellm through pydantic-ai
 pydantic-ai>=1.93.0
