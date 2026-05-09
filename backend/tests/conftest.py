@@ -1,9 +1,9 @@
 import os
 
 # Set environment variables for testing BEFORE importing any app modules
-os.environ["DAILYFEED_DATABASE_URL"] = "sqlite+aiosqlite:///test.db"
-os.environ["DAILYFEED_SCHEDULER_ENABLED"] = "false"
-os.environ["DAILYFEED_DEBUG"] = "false"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["SCHEDULER_ENABLED"] = "false"
+os.environ["DEBUG"] = "false"
 
 import pytest
 import asyncio
