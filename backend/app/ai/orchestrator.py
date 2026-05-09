@@ -10,10 +10,10 @@ from typing import Any, Dict, List, Optional
 from app.ai.agents import (
     cluster_articles,
     critique_summary,
+    detect_trends,
     reason_digest_inclusion,
     summarize_article,
     synthesize_multi_source,
-    detect_trends,
 )
 from app.ai.graphs import (
     get_article_processing_graph,
@@ -47,13 +47,12 @@ class AIOrchestrator:
 
     async def summarize(self, article_id: int, style: str = "concise") -> Dict[str, Any]:
         """Summarize a single article using pydantic-ai."""
-        from app.database import Database
         from sqlalchemy import select
 
+        from app.database import Database
+
         async with Database.get_session() as db:
-            result = await db.execute(
-                select(ArticleModel).where(ArticleModel.id == article_id)
-            )
+            result = await db.execute(select(ArticleModel).where(ArticleModel.id == article_id))
             article = result.scalar_one_or_none()
             if not article:
                 return {"success": False, "error": f"Article {article_id} not found"}
@@ -80,13 +79,12 @@ class AIOrchestrator:
 
     async def critique(self, article_id: int) -> Dict[str, Any]:
         """Critique a summary using pydantic-ai."""
-        from app.database import Database
         from sqlalchemy import select
 
+        from app.database import Database
+
         async with Database.get_session() as db:
-            result = await db.execute(
-                select(ArticleModel).where(ArticleModel.id == article_id)
-            )
+            result = await db.execute(select(ArticleModel).where(ArticleModel.id == article_id))
             article = result.scalar_one_or_none()
             if not article or not article.summary:
                 return {
@@ -112,19 +110,15 @@ class AIOrchestrator:
 
     async def cluster(self, article_ids: List[int]) -> Dict[str, Any]:
         """Cluster articles by topic using AI."""
-        from app.database import Database
         from sqlalchemy import select
 
+        from app.database import Database
+
         async with Database.get_session() as db:
-            result = await db.execute(
-                select(ArticleModel).where(ArticleModel.id.in_(article_ids))
-            )
+            result = await db.execute(select(ArticleModel).where(ArticleModel.id.in_(article_ids)))
             articles = result.scalars().all()
 
-        texts = [
-            f"{a.title}. {a.summary or a.content[:200]}"
-            for a in articles
-        ]
+        texts = [f"{a.title}. {a.summary or a.content[:200]}" for a in articles]
         ids = [a.id for a in articles]
 
         clusters = await cluster_articles(texts, ids)
@@ -136,13 +130,12 @@ class AIOrchestrator:
 
     async def synthesize(self, topic: str, article_ids: List[int]) -> Dict[str, Any]:
         """Synthesize multiple sources on a topic."""
-        from app.database import Database
         from sqlalchemy import select
 
+        from app.database import Database
+
         async with Database.get_session() as db:
-            result = await db.execute(
-                select(ArticleModel).where(ArticleModel.id.in_(article_ids))
-            )
+            result = await db.execute(select(ArticleModel).where(ArticleModel.id.in_(article_ids)))
             articles = result.scalars().all()
 
         article_dicts = [
@@ -164,8 +157,9 @@ class AIOrchestrator:
 
     async def detect_trends(self, article_ids: Optional[List[int]] = None) -> Dict[str, Any]:
         """Detect trends from articles."""
-        from app.database import Database
         from sqlalchemy import select
+
+        from app.database import Database
 
         async with Database.get_session() as db:
             if article_ids:
@@ -173,7 +167,8 @@ class AIOrchestrator:
                     select(ArticleModel).where(ArticleModel.id.in_(article_ids))
                 )
             else:
-                from datetime import datetime, timezone, timedelta
+                from datetime import datetime, timedelta, timezone
+
                 cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
                 result = await db.execute(
                     select(ArticleModel)
@@ -183,10 +178,7 @@ class AIOrchestrator:
                 )
             articles = result.scalars().all()
 
-        texts = [
-            f"{a.title}. {a.summary or a.content[:200]}"
-            for a in articles
-        ]
+        texts = [f"{a.title}. {a.summary or a.content[:200]}" for a in articles]
 
         trend_list = await detect_trends(texts)
         return {
@@ -201,13 +193,12 @@ class AIOrchestrator:
         user_preferences: UserPreferencesModel,
     ) -> Dict[str, Any]:
         """Explain why an article was included in a personalized digest."""
-        from app.database import Database
         from sqlalchemy import select
 
+        from app.database import Database
+
         async with Database.get_session() as db:
-            result = await db.execute(
-                select(ArticleModel).where(ArticleModel.id == article_id)
-            )
+            result = await db.execute(select(ArticleModel).where(ArticleModel.id == article_id))
             article = result.scalar_one_or_none()
             if not article:
                 return {"success": False, "error": "Article not found"}
@@ -255,6 +246,7 @@ class AIOrchestrator:
         """
         if task_type == "fetch":
             from app.tools.fetch_tool import FetchTool
+
             tool = FetchTool()
             result = await tool.execute(**params)
             return {
@@ -274,6 +266,7 @@ class AIOrchestrator:
 
         elif task_type == "memory_sync":
             from app.core.memory import get_memory_store
+
             memory = get_memory_store()
             stats = memory.get_stats()
             return {

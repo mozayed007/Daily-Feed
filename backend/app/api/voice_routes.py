@@ -5,6 +5,7 @@ Provides:
 - REST endpoints to control the assistant (start, stop, speak, status)
 - WebSocket /ws/voice for real-time audio streaming (frontend companion)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -16,7 +17,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from app.voice.assistant import get_voice_assistant, AssistantAction
+from app.voice.assistant import AssistantAction, get_voice_assistant
 from app.voice.stt import get_stt_engine
 from app.voice.tts import get_tts_engine
 
@@ -25,6 +26,7 @@ router = APIRouter()
 
 
 # ── REST control endpoints ────────────────────────────────────────────────────
+
 
 class SpeakRequest(BaseModel):
     text: str
@@ -88,6 +90,7 @@ async def stop_voice():
 
 # ── WebSocket real-time endpoint ─────────────────────────────────────────────
 
+
 class VoiceWebSocketManager:
     """Manages active WebSocket connections for voice streaming."""
 
@@ -148,7 +151,9 @@ async def voice_websocket(websocket: WebSocket):
                     audio_bytes = base64.b64decode(audio_b64)
                     audio_np = np.frombuffer(audio_bytes, dtype=np.float32)
                 except Exception as exc:
-                    await websocket.send_json({"type": "error", "message": f"Audio decode error: {exc}"})
+                    await websocket.send_json(
+                        {"type": "error", "message": f"Audio decode error: {exc}"}
+                    )
                     continue
 
                 # Transcribe
@@ -160,23 +165,27 @@ async def voice_websocket(websocket: WebSocket):
 
                 # Think & respond
                 action = await assistant.think_and_respond(text)
-                await websocket.send_json({
-                    "type": "response",
-                    "text": action.response,
-                    "action": action.action,
-                    "action_payload": action.action_payload,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "response",
+                        "text": action.response,
+                        "action": action.action,
+                        "action_payload": action.action_payload,
+                    }
+                )
 
                 # If assistant wants to speak back, generate TTS audio and send
                 if action.response:
                     try:
                         mp3_bytes = await tts.text_to_speech(action.response, play=False)
                         audio_b64_out = base64.b64encode(mp3_bytes).decode("utf-8")
-                        await websocket.send_json({
-                            "type": "audio",
-                            "format": "mp3",
-                            "data": audio_b64_out,
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "audio",
+                                "format": "mp3",
+                                "data": audio_b64_out,
+                            }
+                        )
                     except Exception as exc:
                         logger.warning("TTS stream back failed: %s", exc)
 
@@ -187,21 +196,25 @@ async def voice_websocket(websocket: WebSocket):
                 # Client sent text directly (e.g. from a text input)
                 text = payload.get("text", "")
                 action = await assistant.think_and_respond(text)
-                await websocket.send_json({
-                    "type": "response",
-                    "text": action.response,
-                    "action": action.action,
-                    "action_payload": action.action_payload,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "response",
+                        "text": action.response,
+                        "action": action.action,
+                        "action_payload": action.action_payload,
+                    }
+                )
                 if action.response:
                     try:
                         mp3_bytes = await tts.text_to_speech(action.response, play=False)
                         audio_b64_out = base64.b64encode(mp3_bytes).decode("utf-8")
-                        await websocket.send_json({
-                            "type": "audio",
-                            "format": "mp3",
-                            "data": audio_b64_out,
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "audio",
+                                "format": "mp3",
+                                "data": audio_b64_out,
+                            }
+                        )
                     except Exception as exc:
                         logger.warning("TTS stream back failed: %s", exc)
                 await assistant.handle_action(action)

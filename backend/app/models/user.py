@@ -7,47 +7,56 @@ This module defines the core user-centric data models:
 - PersonalizedDigest: User-specific content curation
 """
 
-import uuid
 import json
-from datetime import datetime, time, timezone
-from typing import Optional, List, Dict, Any
+import re
+import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, time, timezone
+from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import (
-    Column, String, DateTime, Integer, Float, Boolean, 
-    ForeignKey, Text, JSON, UniqueConstraint
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
-import re
-from pydantic import BaseModel, Field, field_validator
 
 from app.database import Base
 
-
 # SQLAlchemy Database Models
+
 
 class UserModel(Base):
     """User account model."""
+
     __tablename__ = "users"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(100), nullable=False)
     password_hash = Column(String(255), nullable=True)  # Optional for local/PoC
-    
+
     # Status
     is_active = Column(Boolean, default=True)
     onboarding_completed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime, nullable=True)
-    
+
     # Password reset
     reset_token = Column(String(255), nullable=True)
     reset_token_expires = Column(DateTime, nullable=True)
     email_verified = Column(Boolean, default=False)
     verification_token = Column(String(255), nullable=True)
     verification_token_expires = Column(DateTime, nullable=True)
-    
+
     # Relationships
     preferences = relationship("UserPreferencesModel", back_populates="user", uselist=False)
     interactions = relationship("UserInteractionModel", back_populates="user")
@@ -56,107 +65,114 @@ class UserModel(Base):
 
 class UserPreferencesModel(Base):
     """User personalization preferences."""
+
     __tablename__ = "user_preferences"
-    
+
     user_id = Column(String(36), ForeignKey("users.id"), primary_key=True)
-    
+
     # Topic interests (JSON: {"AI": 0.9, "Crypto": 0.3})
     topic_interests = Column(JSON, default=dict)
-    
+
     # Source preferences (JSON: {"TechCrunch": 1.0, "Verge": 0.7})
     source_preferences = Column(JSON, default=dict)
-    
+
     # Content preferences
     summary_length = Column(String(20), default="medium")  # short, medium, long
     daily_article_limit = Column(Integer, default=10)
     delivery_time = Column(String(5), default="08:00")  # HH:MM format
     timezone = Column(String(50), default="UTC")
-    
+
     # Filters
     exclude_topics = Column(JSON, default=list)
     exclude_sources = Column(JSON, default=list)
-    
+
     # Advanced
     language_preference = Column(String(10), default="en")
     include_reading_time = Column(Boolean, default=True)
     freshness_preference = Column(String(20), default="daily")  # breaking, daily, weekly
-    
+
     # Learning
     auto_adjust_interests = Column(Boolean, default=True)
     diversity_boost = Column(Float, default=0.1)  # 0-1, higher = more diverse content
-    
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
+
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
     # Relationships
     user = relationship("UserModel", back_populates="preferences")
 
 
 class UserInteractionModel(Base):
     """User engagement tracking for learning."""
+
     __tablename__ = "user_interactions"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     article_id = Column(Integer, ForeignKey("articles.id"), nullable=False, index=True)
-    
+
     # Delivery tracking
     delivered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     digest_id = Column(String(36), ForeignKey("personalized_digests.id"), nullable=True)
-    
+
     # Engagement tracking
     opened_at = Column(DateTime, nullable=True)
     read_duration_seconds = Column(Integer, default=0)
     scroll_depth = Column(Float, default=0.0)  # 0-1 percentage
-    
+
     # Explicit feedback
     rating = Column(Integer, nullable=True)  # -1 (dislike), 0 (neutral), 1 (like)
     saved = Column(Boolean, default=False)
     shared = Column(Boolean, default=False)
     dismissed = Column(Boolean, default=False)
-    
+
     # Derived score (computed field)
     engagement_score = Column(Float, default=0.0)
-    
+
     # Metadata
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    
+
     # Relationships
     user = relationship("UserModel", back_populates="interactions")
     article = relationship("ArticleModel")
     digest = relationship("PersonalizedDigestModel", back_populates="interactions")
-    
+
     __table_args__ = (
-        UniqueConstraint('user_id', 'article_id', name='unique_user_article_interaction'),
+        UniqueConstraint("user_id", "article_id", name="unique_user_article_interaction"),
     )
 
 
 class PersonalizedDigestModel(Base):
     """User-specific content digest."""
+
     __tablename__ = "personalized_digests"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    
+
     # Content
     article_ids = Column(JSON, default=list)  # Ordered list of article IDs
     article_scores = Column(JSON, default=dict)  # {article_id: score}
-    
+
     # Personalization metrics
     personalization_score = Column(Float, default=0.0)  # 0-1 how well it matches user
     diversity_score = Column(Float, default=0.0)  # Topic diversity
     freshness_score = Column(Float, default=0.0)  # Recency weighting
-    
+
     # Status
     status = Column(String(20), default="pending")  # pending, sent, opened
     sent_at = Column(DateTime, nullable=True)
-    
+
     # Performance metrics
     opened = Column(Boolean, default=False)
     opened_at = Column(DateTime, nullable=True)
     click_count = Column(Integer, default=0)
-    
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    
+
     # Relationships
     user = relationship("UserModel", back_populates="digests")
     interactions = relationship("UserInteractionModel", back_populates="digest")
@@ -164,60 +180,66 @@ class PersonalizedDigestModel(Base):
 
 # Pydantic Models for API
 
+
 class UserCreate(BaseModel):
     """User registration request."""
+
     email: str
     name: str
     password: str
-    
-    @field_validator('email')
+
+    @field_validator("email")
     @classmethod
     def validate_email(cls, v: str) -> str:
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         if not re.match(email_pattern, v):
-            raise ValueError('Invalid email format')
+            raise ValueError("Invalid email format")
         return v.lower()
-    
-    @field_validator('password')
+
+    @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
         if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters')
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
+            raise ValueError("Password must be at least 8 characters")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
         return v
 
 
 class UserResponse(BaseModel):
     """User profile response."""
+
     id: str
     email: str
     name: str
     onboarding_completed: bool
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class TopicInterest(BaseModel):
     """Topic with interest weight."""
+
     topic: str
     weight: float = Field(ge=0.0, le=1.0)
 
 
 class SourcePreference(BaseModel):
     """Source with preference weight."""
+
     source: str
     weight: float = Field(ge=0.0, le=1.0)
 
 
 class UserPreferencesUpdate(BaseModel):
     """Update user preferences."""
+
     topic_interests: Optional[Dict[str, float]] = None
     source_preferences: Optional[Dict[str, float]] = None
     summary_length: Optional[str] = None
@@ -231,8 +253,8 @@ class UserPreferencesUpdate(BaseModel):
     freshness_preference: Optional[str] = None
     auto_adjust_interests: Optional[bool] = None
     diversity_boost: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    
-    @field_validator('delivery_time')
+
+    @field_validator("delivery_time")
     @classmethod
     def validate_time_format(cls, v: Optional[str]) -> Optional[str]:
         """Validate HH:MM format."""
@@ -242,9 +264,9 @@ class UserPreferencesUpdate(BaseModel):
             datetime.strptime(v, "%H:%M")
             return v
         except ValueError:
-            raise ValueError('delivery_time must be in HH:MM format')
-    
-    @field_validator('summary_length')
+            raise ValueError("delivery_time must be in HH:MM format")
+
+    @field_validator("summary_length")
     @classmethod
     def validate_summary_length(cls, v: Optional[str]) -> Optional[str]:
         """Validate summary length."""
@@ -252,10 +274,10 @@ class UserPreferencesUpdate(BaseModel):
             return v
         valid = ["short", "medium", "long"]
         if v not in valid:
-            raise ValueError(f'summary_length must be one of {valid}')
+            raise ValueError(f"summary_length must be one of {valid}")
         return v
-    
-    @field_validator('freshness_preference')
+
+    @field_validator("freshness_preference")
     @classmethod
     def validate_freshness(cls, v: Optional[str]) -> Optional[str]:
         """Validate freshness preference."""
@@ -263,10 +285,10 @@ class UserPreferencesUpdate(BaseModel):
             return v
         valid = ["breaking", "daily", "weekly"]
         if v not in valid:
-            raise ValueError(f'freshness_preference must be one of {valid}')
+            raise ValueError(f"freshness_preference must be one of {valid}")
         return v
 
-    @field_validator('topic_interests', 'source_preferences')
+    @field_validator("topic_interests", "source_preferences")
     @classmethod
     def validate_weight_maps(cls, v: Optional[Dict[str, float]]) -> Optional[Dict[str, float]]:
         """Validate preference maps contain safe keys and 0-1 values."""
@@ -285,7 +307,7 @@ class UserPreferencesUpdate(BaseModel):
             cleaned[safe_key] = float(weight)
         return cleaned
 
-    @field_validator('exclude_topics', 'exclude_sources')
+    @field_validator("exclude_topics", "exclude_sources")
     @classmethod
     def validate_exclude_lists(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         """Validate and normalize exclude lists."""
@@ -306,6 +328,7 @@ class UserPreferencesUpdate(BaseModel):
 
 class UserPreferencesResponse(BaseModel):
     """User preferences response."""
+
     topic_interests: Dict[str, float]
     source_preferences: Dict[str, float]
     summary_length: str
@@ -319,13 +342,14 @@ class UserPreferencesResponse(BaseModel):
     freshness_preference: str
     auto_adjust_interests: bool
     diversity_boost: float
-    
+
     class Config:
         from_attributes = True
 
 
 class UserInteractionCreate(BaseModel):
     """Record user interaction."""
+
     article_id: int
     opened: Optional[bool] = None
     read_duration_seconds: Optional[int] = None
@@ -338,6 +362,7 @@ class UserInteractionCreate(BaseModel):
 
 class UserInteractionResponse(BaseModel):
     """User interaction response."""
+
     id: str
     article_id: int
     delivered_at: datetime
@@ -348,19 +373,21 @@ class UserInteractionResponse(BaseModel):
     saved: bool
     shared: bool
     engagement_score: float
-    
+
     class Config:
         from_attributes = True
 
 
 class ArticleFeedback(BaseModel):
     """Simple feedback for an article."""
+
     article_id: int
     feedback: str  # "like", "dislike", "save", "dismiss"
 
 
 class PersonalizedDigestResponse(BaseModel):
     """Personalized digest response."""
+
     id: str
     created_at: datetime
     articles: List[dict]  # Article + personalization score
@@ -368,13 +395,14 @@ class PersonalizedDigestResponse(BaseModel):
     diversity_score: float
     status: str
     sent_at: Optional[datetime]
-    
+
     class Config:
         from_attributes = True
 
 
 class OnboardingData(BaseModel):
     """Initial user onboarding data."""
+
     name: str
     interests: List[str]  # Selected topics
     preferred_sources: List[str]
@@ -416,6 +444,7 @@ class OnboardingData(BaseModel):
 
 class UserStats(BaseModel):
     """User engagement statistics."""
+
     total_articles_read: int
     total_articles_saved: int
     average_reading_time: int  # seconds

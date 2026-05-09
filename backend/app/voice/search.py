@@ -1,6 +1,7 @@
 """
 Web Search tool using DuckDuckGo — no API key needed, entirely free.
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,11 +22,13 @@ class WebSearchTool:
         try:
             with DDGS() as ddgs:
                 for r in ddgs.text(query, max_results=max_results):
-                    results.append({
-                        "title": r.get("title", ""),
-                        "href": r.get("href", ""),
-                        "body": r.get("body", ""),
-                    })
+                    results.append(
+                        {
+                            "title": r.get("title", ""),
+                            "href": r.get("href", ""),
+                            "body": r.get("body", ""),
+                        }
+                    )
         except Exception as exc:
             logger.warning("Web search failed: %s", exc)
         return results
@@ -37,13 +40,15 @@ class WebSearchTool:
         try:
             with DDGS() as ddgs:
                 for r in ddgs.news(query, max_results=max_results):
-                    results.append({
-                        "title": r.get("title", ""),
-                        "href": r.get("url", ""),
-                        "body": r.get("body", ""),
-                        "source": r.get("source", ""),
-                        "date": r.get("date", ""),
-                    })
+                    results.append(
+                        {
+                            "title": r.get("title", ""),
+                            "href": r.get("url", ""),
+                            "body": r.get("body", ""),
+                            "source": r.get("source", ""),
+                            "date": r.get("date", ""),
+                        }
+                    )
         except Exception as exc:
             logger.warning("News search failed: %s", exc)
         return results

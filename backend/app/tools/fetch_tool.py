@@ -4,38 +4,40 @@ Fetches articles from RSS feeds as a tool
 """
 
 import asyncio
-from typing import Any, Dict, List, Optional
-from datetime import datetime, timezone
-from urllib.parse import urlparse
 import ipaddress
 import socket
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
-import httpx
 import feedparser
+import httpx
 from bs4 import BeautifulSoup
 
-from app.core.tool_base import Tool, ToolResult
-from app.database import Database, ArticleModel, SourceModel
 from app.core.config_manager import get_config
-
+from app.core.tool_base import Tool, ToolResult
+from app.database import ArticleModel, Database, SourceModel
 
 # Blocked hosts for SSRF protection (exact hostname matches)
 BLOCKED_HOSTS = {
-    'localhost', '127.0.0.1', '0.0.0.0', '::1',
-    '169.254.169.254',  # AWS metadata
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+    "::1",
+    "169.254.169.254",  # AWS metadata
 }
 
 # Private/reserved IP ranges to block
 BLOCKED_NETWORKS = [
-    ipaddress.ip_network('10.0.0.0/8'),
-    ipaddress.ip_network('172.16.0.0/12'),
-    ipaddress.ip_network('192.168.0.0/16'),
-    ipaddress.ip_network('127.0.0.0/8'),
-    ipaddress.ip_network('169.254.0.0/16'),  # Link-local
-    ipaddress.ip_network('0.0.0.0/8'),
-    ipaddress.ip_network('fc00::/7'),        # IPv6 unique local
-    ipaddress.ip_network('fe80::/10'),        # IPv6 link-local
-    ipaddress.ip_network('::1/128'),          # IPv6 loopback
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),  # Link-local
+    ipaddress.ip_network("0.0.0.0/8"),
+    ipaddress.ip_network("fc00::/7"),  # IPv6 unique local
+    ipaddress.ip_network("fe80::/10"),  # IPv6 link-local
+    ipaddress.ip_network("::1/128"),  # IPv6 loopback
 ]
 
 MAX_FEED_SIZE = 10 * 1024 * 1024  # 10MB
@@ -44,18 +46,18 @@ FETCH_TIMEOUT = 30  # seconds
 
 class FetchTool(Tool):
     """Tool for fetching articles from RSS feeds."""
-    
+
     def __init__(self):
         self._max_articles = get_config().pipeline.max_articles_per_source
-    
+
     @property
     def name(self) -> str:
         return "fetch_articles"
-    
+
     @property
     def description(self) -> str:
         return "Fetch new articles from configured RSS sources. Returns count of fetched articles."
-    
+
     @property
     def parameters(self) -> Dict[str, Any]:
         return {
@@ -64,53 +66,51 @@ class FetchTool(Tool):
                 "source_ids": {
                     "type": "array",
                     "items": {"type": "integer"},
-                    "description": "Optional list of specific source IDs to fetch from. If empty, fetches from all enabled sources."
+                    "description": "Optional list of specific source IDs to fetch from. If empty, fetches from all enabled sources.",
                 },
                 "max_per_source": {
                     "type": "integer",
                     "description": "Maximum articles to fetch per source",
                     "default": 15,
                     "minimum": 1,
-                    "maximum": 50
-                }
+                    "maximum": 50,
+                },
             },
-            "required": []
+            "required": [],
         }
-    
+
     async def execute(
-        self,
-        source_ids: Optional[List[int]] = None,
-        max_per_source: int = 15
+        self, source_ids: Optional[List[int]] = None, max_per_source: int = 15
     ) -> ToolResult:
         """Execute the fetch tool."""
         try:
             # Use provided max or default
             max_articles = min(max_per_source, self._max_articles)
-            
+
             # Get sources
             async with Database.get_session() as db:
                 from sqlalchemy import select
-                
+
                 query = select(SourceModel)
                 if source_ids:
                     query = query.where(SourceModel.id.in_(source_ids))
                 else:
                     query = query.where(SourceModel.enabled == True)
-                
+
                 result = await db.execute(query)
                 sources = result.scalars().all()
-            
+
             if not sources:
                 return ToolResult(
                     success=True,
                     data={"fetched": 0, "sources_checked": 0},
-                    message="No sources to fetch from"
+                    message="No sources to fetch from",
                 )
-            
+
             # Fetch from each source
             total_fetched = 0
             source_results = []
-            
+
             for source in sources:
                 try:
                     count = await self._fetch_source(source, max_articles)
@@ -118,42 +118,38 @@ class FetchTool(Tool):
                     source_results.append({"source": source.name, "fetched": count})
                 except Exception as e:
                     source_results.append({"source": source.name, "error": str(e)})
-            
+
             return ToolResult(
                 success=True,
                 data={
                     "fetched": total_fetched,
                     "sources_checked": len(sources),
-                    "details": source_results
+                    "details": source_results,
                 },
-                message=f"Fetched {total_fetched} articles from {len(sources)} sources"
+                message=f"Fetched {total_fetched} articles from {len(sources)} sources",
             )
-            
+
         except Exception as e:
-            return ToolResult(
-                success=False,
-                data=None,
-                error=str(e)
-            )
-    
+            return ToolResult(success=False, data=None, error=str(e))
+
     def _validate_url(self, url: str) -> bool:
         """Validate URL for security (SSRF protection)."""
         try:
             parsed = urlparse(url)
-            
+
             # Check scheme
-            if parsed.scheme not in ('http', 'https'):
+            if parsed.scheme not in ("http", "https"):
                 return False
-            
+
             # Check hostname
             hostname = parsed.hostname
             if not hostname:
                 return False
-            
+
             # Check blocked hosts (exact match)
             if hostname.lower() in BLOCKED_HOSTS:
                 return False
-            
+
             # Check if hostname is already an IP address
             try:
                 ip = ipaddress.ip_address(hostname)
@@ -163,7 +159,7 @@ class FetchTool(Tool):
                 return True
             except ValueError:
                 pass  # Not an IP, proceed to DNS check
-            
+
             # For hostnames, we can't safely resolve without potential DNS rebinding,
             # but we can block anything that looks like an IP literal or octal encoding.
             # In production, consider a DNS resolver that validates against blocked ranges
@@ -171,12 +167,12 @@ class FetchTool(Tool):
             return True
         except Exception:
             return False
-    
+
     async def _fetch_feed(self, url: str) -> str:
         """Fetch feed content with timeout and size limit."""
         if not self._validate_url(url):
             raise ValueError(f"Invalid or blocked URL: {url}")
-        
+
         # DNS resolution check to prevent DNS rebinding attacks
         parsed = urlparse(url)
         hostname = parsed.hostname
@@ -189,98 +185,100 @@ class FetchTool(Tool):
                         ip = ipaddress.ip_address(ip_str)
                         for network in BLOCKED_NETWORKS:
                             if ip in network:
-                                raise ValueError(f"Resolved IP {ip_str} for hostname '{hostname}' is in a blocked network")
+                                raise ValueError(
+                                    f"Resolved IP {ip_str} for hostname '{hostname}' is in a blocked network"
+                                )
                     except ValueError:
                         continue
             except socket.gaierror:
                 pass  # DNS resolution failed, will fail on fetch anyway
-        
+
         async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, follow_redirects=True) as client:
-            response = await client.get(url, headers={
-                'User-Agent': 'DailyFeed/1.1 (RSS Aggregator)'
-            })
+            response = await client.get(
+                url, headers={"User-Agent": "DailyFeed/1.1 (RSS Aggregator)"}
+            )
             response.raise_for_status()
-            
+
             # Check content length
             content_length = len(response.content)
             if content_length > MAX_FEED_SIZE:
                 raise ValueError(f"Feed too large: {content_length} bytes (max {MAX_FEED_SIZE})")
-            
+
             # Check content type
-            content_type = response.headers.get('content-type', '').lower()
-            if 'xml' not in content_type and 'rss' not in content_type and 'atom' not in content_type:
+            content_type = response.headers.get("content-type", "").lower()
+            if (
+                "xml" not in content_type
+                and "rss" not in content_type
+                and "atom" not in content_type
+            ):
                 # Allow if response looks like XML
-                if not response.text.strip().startswith('<?xml'):
+                if not response.text.strip().startswith("<?xml"):
                     raise ValueError(f"Invalid content type: {content_type}")
-            
+
             return response.text
-    
+
     async def _fetch_source(self, source: SourceModel, max_articles: int) -> int:
         """Fetch articles from a single source."""
         # Fetch with timeout
         content = await self._fetch_feed(source.url)
-        
+
         # Parse feed
         loop = asyncio.get_event_loop()
         feed = await loop.run_in_executor(None, feedparser.parse, content)
-        
+
         fetched = 0
         async with Database.get_session() as db:
             from sqlalchemy import select
-            
+
             for entry in feed.entries[:max_articles]:
                 try:
                     # Check for duplicate
-                    url = entry.get('link', '').strip()
+                    url = entry.get("link", "").strip()
                     if not url:
                         continue
-                    
-                    existing = await db.execute(
-                        select(ArticleModel).where(ArticleModel.url == url)
-                    )
+
+                    existing = await db.execute(select(ArticleModel).where(ArticleModel.url == url))
                     if existing.scalar_one_or_none():
                         continue
-                    
+
                     # Parse article
                     article = self._parse_entry(entry, source)
                     if article:
                         db.add(article)
                         fetched += 1
-                
+
                 except Exception:
                     continue
-            
+
             # Re-fetch the source within this session to update it
-            source_result = await db.execute(
-                select(SourceModel).where(SourceModel.id == source.id)
-            )
+            source_result = await db.execute(select(SourceModel).where(SourceModel.id == source.id))
             db_source = source_result.scalar_one_or_none()
             if db_source:
                 db_source.last_fetch = datetime.now(timezone.utc)
                 db_source.fetch_count += fetched
-            
+
             await db.commit()
-        
+
         return fetched
-    
+
     def _parse_entry(self, entry: Any, source: SourceModel) -> Optional[ArticleModel]:
         """Parse feed entry into ArticleModel."""
-        title = entry.get('title', '').strip()
-        url = entry.get('link', '').strip()
-        
+        title = entry.get("title", "").strip()
+        url = entry.get("link", "").strip()
+
         if not title or not url:
             return None
-        
+
         # Parse date
         published_at = None
-        if hasattr(entry, 'published_parsed') and entry.published_parsed:
+        if hasattr(entry, "published_parsed") and entry.published_parsed:
             published_at = datetime(*entry.published_parsed[:6])
-        elif hasattr(entry, 'updated_parsed') and entry.updated_parsed:
+        elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
             published_at = datetime(*entry.updated_parsed[:6])
-        
+
         # Extract content
         content = self._extract_content(entry)
-        
+
         return ArticleModel(
             title=title,
             url=url,
@@ -289,39 +287,39 @@ class FetchTool(Tool):
             category=source.category,
             published_at=published_at,
             fetched_at=datetime.now(timezone.utc),
-            is_processed=False
+            is_processed=False,
         )
-    
+
     def _extract_content(self, entry: Any) -> str:
         """Extract content from entry."""
-        content = ''
-        
-        if hasattr(entry, 'content') and entry.content:
+        content = ""
+
+        if hasattr(entry, "content") and entry.content:
             content = entry.content[0].value
-        elif hasattr(entry, 'summary'):
+        elif hasattr(entry, "summary"):
             content = entry.summary
-        elif hasattr(entry, 'description'):
+        elif hasattr(entry, "description"):
             content = entry.description
-        
+
         # Clean HTML
         content = self._clean_html(content)
-        
+
         # Limit length
         if len(content) > 10000:
-            content = content[:10000] + '...'
-        
+            content = content[:10000] + "..."
+
         return content
-    
+
     def _clean_html(self, html: str) -> str:
         """Remove HTML tags."""
         if not html:
-            return ''
-        
-        soup = BeautifulSoup(html, 'html.parser')
+            return ""
+
+        soup = BeautifulSoup(html, "html.parser")
         for script in soup(["script", "style"]):
             script.decompose()
-        
-        text = soup.get_text(separator=' ', strip=True)
+
+        text = soup.get_text(separator=" ", strip=True)
         lines = (line.strip() for line in text.splitlines())
         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-        return ' '.join(chunk for chunk in chunks if chunk)
+        return " ".join(chunk for chunk in chunks if chunk)

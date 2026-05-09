@@ -1,18 +1,28 @@
 """Database configuration and models"""
 
 import json
-from datetime import datetime, timezone
-from typing import Optional, List, AsyncGenerator, Any
-from pydantic import HttpUrl, field_validator
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import Any, AsyncGenerator, List, Optional
 
+from pydantic import HttpUrl, field_validator
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Text, DateTime, 
-    Boolean, ForeignKey, JSON, select, desc, func
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    desc,
+    func,
+    select,
 )
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.declarative import DeclarativeMeta
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 from app.config import get_settings
 
@@ -22,17 +32,9 @@ settings = get_settings()
 Base: DeclarativeMeta = declarative_base()
 
 # Async engine for FastAPI
-async_engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    future=True
-)
+async_engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG, future=True)
 
-AsyncSessionLocal = async_sessionmaker(
-    async_engine,
-    class_=AsyncSession,
-    expire_on_commit=False
-)
+AsyncSessionLocal = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
 # Sync engine for background tasks
 sync_database_url = settings.DATABASE_URL.replace("sqlite+aiosqlite://", "sqlite://")
@@ -43,8 +45,9 @@ SessionLocal = sessionmaker(bind=sync_engine)
 # Database Models
 class ArticleModel(Base):
     """Article database model"""
+
     __tablename__ = "articles"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(500), nullable=False)
     url = Column(String(1000), unique=True, nullable=False, index=True)
@@ -59,7 +62,7 @@ class ArticleModel(Base):
     fetched_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_processed = Column(Boolean, default=False, index=True)
     critic_score = Column(Integer)
-    
+
     # Relationships
     digest_id = Column(Integer, ForeignKey("digests.id"), nullable=True)
     digest = relationship("DigestModel", back_populates="articles")
@@ -67,23 +70,25 @@ class ArticleModel(Base):
 
 class DigestModel(Base):
     """Digest database model"""
+
     __tablename__ = "digests"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     article_count = Column(Integer, default=0)
     delivered = Column(Boolean, default=False)
     delivered_at = Column(DateTime)
     content = Column(Text)
-    
+
     # Relationships
     articles = relationship("ArticleModel", back_populates="digest")
 
 
 class SourceModel(Base):
     """RSS Source configuration"""
+
     __tablename__ = "sources"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
     url = Column(String(1000), unique=True, nullable=False)
@@ -97,18 +102,24 @@ class SourceModel(Base):
 
 class SettingModel(Base):
     """User settings storage"""
+
     __tablename__ = "settings"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(100), unique=True, nullable=False)
     value = Column(Text)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 class LogModel(Base):
     """System logs"""
+
     __tablename__ = "logs"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     level = Column(String(20), nullable=False)
     message = Column(Text, nullable=False)
@@ -120,19 +131,19 @@ class LogModel(Base):
 # Database operations
 class Database:
     """Database operations wrapper"""
-    
+
     @staticmethod
     async def create_tables():
         """Create all tables"""
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-    
+
     @staticmethod
     async def drop_tables():
         """Drop all tables"""
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
-    
+
     @staticmethod
     @asynccontextmanager
     async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -146,7 +157,7 @@ class Database:
                 raise
             finally:
                 await session.close()
-    
+
     @staticmethod
     def get_sync_session():
         """Get sync database session for background tasks"""
@@ -164,9 +175,10 @@ async def get_db():
         yield session
 
 
+from typing import Any, Dict
+
 # Pydantic models for API
 from pydantic import BaseModel, Field
-from typing import Dict, Any
 
 
 class ArticleCreate(BaseModel):
@@ -192,7 +204,7 @@ class ArticleResponse(BaseModel):
     fetched_at: datetime
     is_processed: bool = False
     critic_score: Optional[int] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -209,8 +221,8 @@ class SourceCreate(BaseModel):
     url: str
     category: Optional[str] = "General"
     enabled: bool = True
-    
-    @field_validator('url')
+
+    @field_validator("url")
     @classmethod
     def validate_url(cls, v: str) -> str:
         """Validate URL format"""
@@ -219,7 +231,7 @@ class SourceCreate(BaseModel):
             HttpUrl(v)
             return v
         except Exception:
-            raise ValueError('Invalid URL format')
+            raise ValueError("Invalid URL format")
 
 
 class SourceResponse(BaseModel):
@@ -232,7 +244,7 @@ class SourceResponse(BaseModel):
     fetch_count: int
     error_count: int
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -244,7 +256,7 @@ class DigestResponse(BaseModel):
     delivered: bool
     delivered_at: Optional[datetime]
     articles: List[ArticleResponse] = []
-    
+
     class Config:
         from_attributes = True
 

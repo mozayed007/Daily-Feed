@@ -9,6 +9,7 @@ Distil-Whisper is the r/LocalLLaMA favorite:
 
 We default to distil-large-v3 for quality, with tiny as CPU-constrained fallback.
 """
+
 from __future__ import annotations
 
 import io
@@ -31,7 +32,9 @@ FALLBACK_MODEL = "tiny"
 class STTEngine:
     """Local faster-whisper STT engine with Distil-Whisper support."""
 
-    def __init__(self, model_size: str = DEFAULT_MODEL, device: str = "auto", compute_type: str = "int8"):
+    def __init__(
+        self, model_size: str = DEFAULT_MODEL, device: str = "auto", compute_type: str = "int8"
+    ):
         self.model_size = model_size
         self._model: WhisperModel | None = None
         self._device = device
@@ -44,7 +47,9 @@ class STTEngine:
         try:
             logger.info(
                 "Loading faster-whisper model '%s' (device=%s, compute=%s) ...",
-                self.model_size, self._device, self._compute_type,
+                self.model_size,
+                self._device,
+                self._compute_type,
             )
             self._model = WhisperModel(
                 self.model_size,
@@ -57,7 +62,9 @@ class STTEngine:
             if self.model_size != FALLBACK_MODEL:
                 logger.warning(
                     "Failed to load %s (%s), falling back to %s.",
-                    self.model_size, exc, FALLBACK_MODEL,
+                    self.model_size,
+                    exc,
+                    FALLBACK_MODEL,
                 )
                 self.model_size = FALLBACK_MODEL
                 self._fallback = True
@@ -86,6 +93,7 @@ class STTEngine:
 
         # Write temporary WAV
         import wave
+
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             w = wave.open(f.name, "wb")
             w.setnchannels(1)
@@ -113,7 +121,9 @@ class STTEngine:
     def record_and_transcribe(self, duration: float = 5.0, samplerate: int = 16000) -> str:
         """Record audio from the default microphone and transcribe."""
         logger.info("Recording %.1f seconds ...", duration)
-        audio = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype="float32")
+        audio = sd.rec(
+            int(duration * samplerate), samplerate=samplerate, channels=1, dtype="float32"
+        )
         sd.wait()
         audio_1d = audio.reshape(-1)
         return self.transcribe_audio(audio_1d, samplerate)

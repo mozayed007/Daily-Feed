@@ -12,6 +12,7 @@ Modes:
   --standalone   : console loop (no server needed)
   --server       : WebSocket endpoint served by FastAPI
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -26,25 +27,32 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-import sounddevice as sd
+
+try:
+    import sounddevice as sd
+except OSError:
+    sd = None  # PortAudio not available (e.g. CI runners)
+
 from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
 
-from app.voice.stt import get_stt_engine
-from app.voice.tts import get_tts_engine, JARVIS_VOICE, FRIDAY_VOICE
-from app.voice.search import get_web_search_tool
 from app.ai.llm import create_agent
 from app.ai.orchestrator import get_orchestrator
+from app.voice.search import get_web_search_tool
+from app.voice.stt import get_stt_engine
+from app.voice.tts import FRIDAY_VOICE, JARVIS_VOICE, get_tts_engine
 
 logger = logging.getLogger("voice.assistant")
 
 # ── Structured output for assistant responses ──────────────────────────────
 
+
 class AssistantAction(BaseModel):
     """What the assistant decided to do."""
-    thought: str          # internal reasoning
-    response: str         # what to say to the user
-    action: str           # e.g. "none", "open_dashboard", "fetch_news", "start_scheduler"
+
+    thought: str  # internal reasoning
+    response: str  # what to say to the user
+    action: str  # e.g. "none", "open_dashboard", "fetch_news", "start_scheduler"
     action_payload: Dict[str, Any] = {}
 
 
@@ -80,6 +88,7 @@ If the user asks to remember something, use the remember_note tool.
 
 # ── Tool definitions for pydantic-ai agent ───────────────────────────────────
 
+
 async def tool_fetch_news(ctx: RunContext, sources: Optional[List[str]] = None) -> str:
     """Fetch latest articles from RSS sources."""
     orchestrator = get_orchestrator()
@@ -114,6 +123,7 @@ async def tool_web_search(ctx: RunContext, query: str) -> str:
 async def tool_remember_note(ctx: RunContext, note: str) -> str:
     """Save a note to the memory system."""
     from app.core.memory import get_memory_store
+
     memory = get_memory_store()
     unit = memory.remember_article(
         article_id=0,
@@ -128,8 +138,10 @@ async def tool_remember_note(ctx: RunContext, note: str) -> str:
 
 async def tool_get_stats(ctx: RunContext) -> str:
     """Get system statistics."""
-    from app.database import Database, ArticleModel, SourceModel
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
+    from app.database import ArticleModel, Database, SourceModel
+
     async with Database.get_session() as db:
         articles = await db.scalar(select(func.count()).select_from(ArticleModel))
         sources = await db.scalar(select(func.count()).select_from(SourceModel))
@@ -139,6 +151,7 @@ async def tool_get_stats(ctx: RunContext) -> str:
 async def tool_start_scheduler(ctx: RunContext) -> str:
     """Start the background scheduler."""
     from app.core.scheduler import get_scheduler
+
     scheduler = get_scheduler()
     await scheduler.start()
     return "Scheduler started. I'll keep fetching news automatically."
@@ -147,6 +160,7 @@ async def tool_start_scheduler(ctx: RunContext) -> str:
 async def tool_stop_scheduler(ctx: RunContext) -> str:
     """Stop the background scheduler."""
     from app.core.scheduler import get_scheduler
+
     scheduler = get_scheduler()
     await scheduler.stop()
     return "Scheduler stopped."
@@ -163,6 +177,7 @@ async def tool_open_dashboard(ctx: RunContext, path: str = "/") -> str:
 
 
 # ── Agent factory ────────────────────────────────────────────────────────────
+
 
 def build_voice_agent(voice: str = "jarvis") -> Agent:
     """Create the pydantic-ai agent with all tools registered."""
@@ -194,11 +209,12 @@ def build_voice_agent(voice: str = "jarvis") -> Agent:
 
 # ── Voice Assistant class ───────────────────────────────────────────────────
 
+
 class VoiceAssistant:
     """Main voice assistant orchestrator."""
 
     WAKE_WORDS = ["jarvis", "friday", "hey jarvis", "hey friday", "assistant"]
-    LISTEN_DURATION = 6.0   # seconds to record after wake
+    LISTEN_DURATION = 6.0  # seconds to record after wake
     SILENCE_THRESHOLD = 0.015  # energy threshold for speech detection
 
     def __init__(self, voice: str = "jarvis", trigger_mode: str = "wake"):
@@ -209,7 +225,9 @@ class VoiceAssistant:
         """
         self.voice_name = voice.lower()
         self.trigger_mode = trigger_mode
-        self.tts = get_tts_engine(voice=JARVIS_VOICE if self.voice_name == "jarvis" else FRIDAY_VOICE)
+        self.tts = get_tts_engine(
+            voice=JARVIS_VOICE if self.voice_name == "jarvis" else FRIDAY_VOICE
+        )
         self.stt = get_stt_engine()
         self._agent: Agent | None = None
         self._running = False
@@ -240,7 +258,7 @@ class VoiceAssistant:
 
     def _has_speech(self, audio: np.ndarray) -> bool:
         """Check if audio buffer contains audible speech."""
-        energy = np.sqrt(np.mean(audio ** 2))
+        energy = np.sqrt(np.mean(audio**2))
         return energy > self.SILENCE_THRESHOLD
 
     def listen(self, duration: float | None = None) -> str:
@@ -320,7 +338,9 @@ class VoiceAssistant:
         if user_text is None:
             user_text = self.listen(duration=self.LISTEN_DURATION)
         if not user_text.strip():
-            return AssistantAction(thought="No speech detected.", response="I didn't catch that.", action="none")
+            return AssistantAction(
+                thought="No speech detected.", response="I didn't catch that.", action="none"
+            )
 
         action = await self.think_and_respond(user_text)
         await self.handle_action(action)

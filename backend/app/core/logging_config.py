@@ -15,7 +15,7 @@ from app.core.config_manager import get_config
 
 def configure_logging() -> None:
     """Configure structured logging for the application.
-    
+
     Sets up:
     - structlog for application logging
     - Standard library logging integration
@@ -23,7 +23,7 @@ def configure_logging() -> None:
     """
     config = get_config()
     is_development = config.debug
-    
+
     # Shared processors for both structlog and stdlib logging
     shared_processors: list[Processor] = [
         # Add timestamp in ISO format
@@ -41,12 +41,10 @@ def configure_logging() -> None:
             ]
         ),
     ]
-    
+
     if is_development:
         # Development: colored console output
-        processors = shared_processors + [
-            structlog.dev.ConsoleRenderer(colors=True)
-        ]
+        processors = shared_processors + [structlog.dev.ConsoleRenderer(colors=True)]
         formatter = structlog.stdlib.ProcessorFormatter(
             processor=structlog.dev.ConsoleRenderer(colors=True),
             foreign_pre_chain=shared_processors,
@@ -61,7 +59,7 @@ def configure_logging() -> None:
             processor=structlog.processors.JSONRenderer(),
             foreign_pre_chain=shared_processors,
         )
-    
+
     # Configure structlog
     structlog.configure(
         processors=processors,
@@ -70,21 +68,21 @@ def configure_logging() -> None:
         logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=True,
     )
-    
+
     # Configure standard library logging to use structlog processors
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
-    
+
     # Configure root logger
     root_logger = logging.getLogger()
     root_logger.handlers = [handler]
     root_logger.setLevel(logging.INFO)
-    
+
     # Set specific log levels for noisy libraries
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
-    
+
     # Get a logger for this module
     logger = structlog.get_logger()
     logger.info(
@@ -97,18 +95,18 @@ def configure_logging() -> None:
 
 def get_logger(name: str | None = None, **context: Any) -> structlog.BoundLogger:
     """Get a structured logger with optional context.
-    
+
     Args:
         name: Logger name (typically __name__)
         **context: Additional context to bind to all log messages
-        
+
     Returns:
         A configured structlog logger
-        
+
     Example:
         >>> logger = get_logger(__name__, component="fetch_tool")
         >>> logger.info("fetching_feed", url="https://example.com/feed")
-        {"event": "fetching_feed", "url": "https://example.com/feed", 
+        {"event": "fetching_feed", "url": "https://example.com/feed",
          "component": "fetch_tool", "timestamp": "2026-01-04T..."}
     """
     logger = structlog.get_logger(name)

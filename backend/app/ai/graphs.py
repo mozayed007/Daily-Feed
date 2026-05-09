@@ -8,7 +8,7 @@ Uses the pydantic-graph beta API (builder pattern) for parallel execution:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from pydantic_graph.beta import GraphBuilder, StepContext
@@ -23,12 +23,13 @@ from app.ai.agents import (
 )
 from app.ai.models import ArticleCluster, MultiSourceSynthesis
 from app.core.memory import get_memory_store
-from app.database import Database, ArticleModel, DigestModel
+from app.database import ArticleModel, Database, DigestModel
 
 logger = logging.getLogger(__name__)
 
 
 # ── Shared State ────────────────────────────────────────────────────────────
+
 
 @dataclass
 class PipelineState:
@@ -44,6 +45,7 @@ class PipelineState:
 
 # ── Article Processing Graph ──────────────────────────────────────────────
 
+
 async def _article_processing_graph():
     """Build and return the article processing graph."""
     g = GraphBuilder(state_type=PipelineState, output_type=Dict[str, Any])
@@ -53,10 +55,9 @@ async def _article_processing_graph():
         """Fetch IDs of unprocessed articles from the database."""
         async with Database.get_session() as db:
             from sqlalchemy import select
+
             result = await db.execute(
-                select(ArticleModel)
-                .where(ArticleModel.is_processed == False)
-                .limit(20)
+                select(ArticleModel).where(ArticleModel.is_processed == False).limit(20)
             )
             articles = result.scalars().all()
             ids = [a.id for a in articles]
@@ -71,9 +72,8 @@ async def _article_processing_graph():
         try:
             async with Database.get_session() as db:
                 from sqlalchemy import select
-                result = await db.execute(
-                    select(ArticleModel).where(ArticleModel.id == article_id)
-                )
+
+                result = await db.execute(select(ArticleModel).where(ArticleModel.id == article_id))
                 article = result.scalar_one_or_none()
                 if not article:
                     return article_id
@@ -104,9 +104,8 @@ async def _article_processing_graph():
         try:
             async with Database.get_session() as db:
                 from sqlalchemy import select
-                result = await db.execute(
-                    select(ArticleModel).where(ArticleModel.id == article_id)
-                )
+
+                result = await db.execute(select(ArticleModel).where(ArticleModel.id == article_id))
                 article = result.scalar_one_or_none()
                 if not article or not article.summary:
                     return article_id
@@ -132,9 +131,8 @@ async def _article_processing_graph():
         try:
             async with Database.get_session() as db:
                 from sqlalchemy import select
-                result = await db.execute(
-                    select(ArticleModel).where(ArticleModel.id == article_id)
-                )
+
+                result = await db.execute(select(ArticleModel).where(ArticleModel.id == article_id))
                 article = result.scalar_one_or_none()
                 if not article:
                     return article_id
@@ -196,14 +194,19 @@ class ArticleProcessingGraph:
         graph = await self._get_graph()
         state = PipelineState()
         result = await graph.run(state=state)
-        return result if result else {
-            "success": True,
-            "processed": len(state.processed_ids),
-            "failed": len(state.failed_ids),
-        }
+        return (
+            result
+            if result
+            else {
+                "success": True,
+                "processed": len(state.processed_ids),
+                "failed": len(state.failed_ids),
+            }
+        )
 
 
 # ── Digest Generation Graph ─────────────────────────────────────────────────
+
 
 async def _digest_generation_graph():
     """Build and return the digest generation graph."""
@@ -214,6 +217,7 @@ async def _digest_generation_graph():
         """Fetch recent processed articles from the database."""
         async with Database.get_session() as db:
             from sqlalchemy import select
+
             cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
             result = await db.execute(
                 select(ArticleModel)
@@ -228,16 +232,15 @@ async def _digest_generation_graph():
             return list(articles)
 
     @g.step
-    async def cluster(ctx: StepContext[PipelineState, Any, List[ArticleModel]]) -> List[ArticleCluster]:
+    async def cluster(
+        ctx: StepContext[PipelineState, Any, List[ArticleModel]],
+    ) -> List[ArticleCluster]:
         """Cluster articles by topic using AI."""
         articles = ctx.inputs
         if not articles:
             return []
 
-        texts = [
-            f"{a.title}. {a.summary or a.content[:200]}"
-            for a in articles
-        ]
+        texts = [f"{a.title}. {a.summary or a.content[:200]}" for a in articles]
         ids = [a.id for a in articles]
 
         clusters = await cluster_articles(texts, ids)
@@ -246,7 +249,9 @@ async def _digest_generation_graph():
         return clusters
 
     @g.step
-    async def synthesize_cluster(ctx: StepContext[PipelineState, Any, ArticleCluster]) -> MultiSourceSynthesis:
+    async def synthesize_cluster(
+        ctx: StepContext[PipelineState, Any, ArticleCluster],
+    ) -> MultiSourceSynthesis:
         """Synthesize articles within a single cluster (parallel via map)."""
         cluster = ctx.inputs
         if not cluster.article_ids:
@@ -261,6 +266,7 @@ async def _digest_generation_graph():
 
         async with Database.get_session() as db:
             from sqlalchemy import select
+
             result = await db.execute(
                 select(ArticleModel).where(ArticleModel.id.in_(cluster.article_ids))
             )
@@ -282,7 +288,9 @@ async def _digest_generation_graph():
         return synthesis
 
     @g.step
-    async def build_digest(ctx: StepContext[PipelineState, Any, List[MultiSourceSynthesis]]) -> Dict[str, Any]:
+    async def build_digest(
+        ctx: StepContext[PipelineState, Any, List[MultiSourceSynthesis]],
+    ) -> Dict[str, Any]:
         """Build and save the digest from synthesized clusters."""
         syntheses = ctx.inputs
         if not syntheses:
@@ -307,6 +315,7 @@ async def _digest_generation_graph():
 
             # Associate articles
             from sqlalchemy import select
+
             result = await db.execute(
                 select(ArticleModel).where(ArticleModel.id.in_(all_article_ids))
             )
@@ -356,13 +365,18 @@ class DigestGenerationGraph:
         graph = await self._get_graph()
         state = PipelineState()
         result = await graph.run(state=state)
-        return result if result else {
-            "success": True,
-            "digest_id": state.digest_id,
-        }
+        return (
+            result
+            if result
+            else {
+                "success": True,
+                "digest_id": state.digest_id,
+            }
+        )
 
 
 # ── Full Pipeline Graph ─────────────────────────────────────────────────────
+
 
 async def _full_pipeline_graph():
     """Build and return the full pipeline graph."""
@@ -372,6 +386,7 @@ async def _full_pipeline_graph():
     async def run_fetch(ctx: StepContext[PipelineState, Any, Any]) -> str:
         """Run the fetch pipeline step."""
         from app.tools.fetch_tool import FetchTool
+
         tool = FetchTool()
         result = await tool.execute()
         ctx.state.fetched_count = result.data.get("fetched", 0)
@@ -427,12 +442,16 @@ class FullPipelineGraph:
         graph = await self._get_graph()
         state = PipelineState()
         result = await graph.run(state=state)
-        return result if result else {
-            "success": True,
-            "fetch": state.fetched_count,
-            "process": len(state.processed_ids),
-            "digest": state.digest_id,
-        }
+        return (
+            result
+            if result
+            else {
+                "success": True,
+                "fetch": state.fetched_count,
+                "process": len(state.processed_ids),
+                "digest": state.digest_id,
+            }
+        )
 
 
 # ── Singleton instances ───────────────────────────────────────────────────────

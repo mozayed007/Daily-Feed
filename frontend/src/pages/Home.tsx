@@ -36,29 +36,6 @@ export function Home() {
     setShowDigest(true);
   };
 
-  const handleDigestError = (error: unknown) => {
-    console.error('Digest generation failed:', error);
-    
-    if (error instanceof Error) {
-      if (error.message.includes('Network')) {
-        setDigestError('Network connection failed. Please check your internet connection.');
-      } else if (error.message.includes('404') || error.message.includes('Not Found')) {
-        setDigestError('Could not generate digest. Please try again later.');
-      } else if (error.message.includes('500') || error.message.includes('Server Error')) {
-        setDigestError('Server error occurred. Please try again later.');
-      } else {
-        setDigestError('An unexpected error occurred. Please try again.');
-      }
-    } else {
-      setDigestError('An unexpected error occurred. Please try again.');
-    }
-  };
-
-  const resetDigestError = () => {
-    setDigestError(null);
-    setShowDigest(false);
-  };
-
   const handleRetry = () => {
     generateDigest.mutate();
     setDigestError(null);

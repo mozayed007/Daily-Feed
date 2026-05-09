@@ -3,12 +3,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Sparkles, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { useToast } from '../components/Toast';
-import { useOAuthUrl, useOAuthCallback } from '../hooks/useUser';
+import { useOAuthUrl } from '../hooks/useUser';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();

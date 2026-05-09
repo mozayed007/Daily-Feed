@@ -8,7 +8,6 @@ import {
   ThumbsUp,
   ThumbsDown,
   Bookmark,
-  Share2,
   Tag,
   Newspaper,
   BarChart3,

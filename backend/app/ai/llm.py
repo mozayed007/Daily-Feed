@@ -8,6 +8,7 @@ from pydantic_ai.settings import ModelSettings
 
 try:
     from pydantic_ai_litellm import LiteLLMModel
+
     HAS_LITELLM = True
 except ImportError:  # pragma: no cover
     HAS_LITELLM = False
@@ -66,14 +67,15 @@ def get_model(model_override: Optional[str] = None) -> Any:
     """
     if not HAS_LITELLM:
         raise ImportError(
-            "pydantic-ai-litellm is not installed. "
-            "Run: pip install pydantic-ai-litellm"
+            "pydantic-ai-litellm is not installed. " "Run: pip install pydantic-ai-litellm"
         )
 
     model_name = model_override or _get_litellm_model_name()
     kwargs = _get_litellm_kwargs()
 
-    logger.info("Creating LiteLLMModel", extra={"model": model_name, "provider": settings.LLM_PROVIDER})
+    logger.info(
+        "Creating LiteLLMModel", extra={"model": model_name, "provider": settings.LLM_PROVIDER}
+    )
     return LiteLLMModel(model_name=model_name, **kwargs)
 
 
@@ -120,6 +122,7 @@ async def get_available_providers() -> Dict[str, Any]:
     if HAS_LITELLM:
         try:
             import httpx
+
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{settings.OLLAMA_URL}/api/tags",
@@ -129,8 +132,7 @@ async def get_available_providers() -> Dict[str, Any]:
                     data = response.json()
                     providers["ollama"]["available"] = True
                     providers["ollama"]["models"] = [
-                        m.get("name", m.get("model", ""))
-                        for m in data.get("models", [])
+                        m.get("name", m.get("model", "")) for m in data.get("models", [])
                     ]
         except Exception:
             pass

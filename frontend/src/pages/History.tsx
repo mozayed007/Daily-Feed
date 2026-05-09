@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bookmark, Clock, Calendar, ChevronRight, Filter } from 'lucide-react';
+import { Bookmark, Clock, Calendar, ChevronRight } from 'lucide-react';
 import { useReadingHistory } from '../hooks/useUser';
 import { useArticles } from '../hooks/useArticles';
 import { ArticleCardSkeleton } from '../components/Skeleton';

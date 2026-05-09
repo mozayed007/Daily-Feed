@@ -1,21 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from pydantic import BaseModel
-from app.database import get_db
-from app.config import get_settings
-from app.models.user import UserModel, UserCreate, UserResponse, UserPreferencesModel
-from app.core.auth import (
-    verify_password, get_password_hash, create_tokens, decode_token,
-    create_password_reset_token, verify_password_reset_token
-)
-from app.api.deps import get_current_user
-from app.core.rate_limit import limiter
-from datetime import datetime, timezone, timedelta
 import os
 import secrets
+from datetime import datetime, timedelta, timezone
+
 import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_user
+from app.config import get_settings
+from app.core.auth import (
+    create_password_reset_token,
+    create_tokens,
+    decode_token,
+    get_password_hash,
+    verify_password,
+    verify_password_reset_token,
+)
+from app.core.rate_limit import limiter
+from app.database import get_db
+from app.models.user import UserCreate, UserModel, UserPreferencesModel, UserResponse
 
 settings = get_settings()
 
@@ -53,94 +59,87 @@ class ResetPasswordRequest(BaseModel):
 async def register(request: Request, user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(UserModel).where(UserModel.email == user_data.email))
     existing_user = result.scalar_one_or_none()
-    
+
     if existing_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
-    
+
     password_hash = get_password_hash(user_data.password)
-    
-    new_user = UserModel(
-        email=user_data.email,
-        name=user_data.name,
-        password_hash=password_hash
-    )
-    
+
+    new_user = UserModel(email=user_data.email, name=user_data.name, password_hash=password_hash)
+
     db.add(new_user)
     await db.flush()
     await db.refresh(new_user)
-    
+
     user_preferences = UserPreferencesModel(user_id=new_user.id)
     db.add(user_preferences)
     await db.commit()
-    
+
     tokens = create_tokens(new_user.id, new_user.email)
     return TokenResponse(**tokens)
 
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
-async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(UserModel).where(UserModel.email == form_data.username))
     user = result.scalar_one_or_none()
-    
+
     if not user or not user.password_hash:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     tokens = create_tokens(user.id, user.email)
     return TokenResponse(**tokens)
 
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit("10/minute")
-async def refresh_token(request: Request, request_data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
+async def refresh_token(
+    request: Request, request_data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)
+):
     try:
         payload = decode_token(request_data.refresh_token)
         token_type = payload.get("type")
         if token_type != "refresh":
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
             )
-        
+
         user_id = payload.get("sub")
         email = payload.get("email")
-        
+
         if not user_id or not email:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
-            )
-        
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
         result = await db.execute(select(UserModel).where(UserModel.id == user_id))
         user = result.scalar_one_or_none()
-        
+
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found"
-            )
-        
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
         tokens = create_tokens(user.id, user.email)
         return TokenResponse(**tokens)
-    
+
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
         )
 
 
@@ -165,7 +164,7 @@ async def get_me(current_user: UserModel = Depends(get_current_user)):
         email=current_user.email,
         name=current_user.name,
         onboarding_completed=current_user.onboarding_completed,
-        created_at=current_user.created_at
+        created_at=current_user.created_at,
     )
 
 
@@ -174,7 +173,7 @@ async def get_me(current_user: UserModel = Depends(get_current_user)):
 async def send_verification_email(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(get_current_user),
 ):
     """Send an email verification token.
 
@@ -197,31 +196,26 @@ async def send_verification_email(
 
 @router.post("/verify-email/confirm")
 @limiter.limit("10/minute")
-async def confirm_email(
-    request: Request,
-    token: str,
-    db: AsyncSession = Depends(get_db)
-):
+async def confirm_email(request: Request, token: str, db: AsyncSession = Depends(get_db)):
     """Confirm email verification using a token."""
     email = verify_password_reset_token(token)
     if not email:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired verification token"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired verification token"
         )
 
     result = await db.execute(
-        select(UserModel).where(
-            UserModel.email == email,
-            UserModel.verification_token == token
-        )
+        select(UserModel).where(UserModel.email == email, UserModel.verification_token == token)
     )
     user = result.scalar_one_or_none()
 
-    if not user or not user.verification_token_expires or user.verification_token_expires < datetime.now(timezone.utc):
+    if (
+        not user
+        or not user.verification_token_expires
+        or user.verification_token_expires < datetime.now(timezone.utc)
+    ):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired verification token"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired verification token"
         )
 
     user.email_verified = True
@@ -233,6 +227,7 @@ async def confirm_email(
 
 
 # ========== OAuth ==========
+
 
 class OAuthCallbackRequest(BaseModel):
     code: str
@@ -336,9 +331,7 @@ async def oauth_authorize_url(provider: str):
 
 @router.post("/oauth/callback", response_model=TokenResponse)
 async def oauth_callback(
-    request: Request,
-    data: OAuthCallbackRequest,
-    db: AsyncSession = Depends(get_db)
+    request: Request, data: OAuthCallbackRequest, db: AsyncSession = Depends(get_db)
 ):
     """Handle OAuth callback and create/authenticate user."""
     try:
@@ -387,9 +380,7 @@ async def oauth_callback(
 @router.post("/forgot-password")
 @limiter.limit("3/minute")
 async def forgot_password(
-    request: Request,
-    data: ForgotPasswordRequest,
-    db: AsyncSession = Depends(get_db)
+    request: Request, data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)
 ):
     """Generate a password reset token for the user.
 
@@ -418,37 +409,33 @@ async def forgot_password(
 @router.post("/reset-password")
 @limiter.limit("5/minute")
 async def reset_password(
-    request: Request,
-    data: ResetPasswordRequest,
-    db: AsyncSession = Depends(get_db)
+    request: Request, data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)
 ):
     """Reset password using a valid reset token."""
     email = verify_password_reset_token(data.token)
     if not email:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset token"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token"
         )
 
     result = await db.execute(
-        select(UserModel).where(
-            UserModel.email == email,
-            UserModel.reset_token == data.token
-        )
+        select(UserModel).where(UserModel.email == email, UserModel.reset_token == data.token)
     )
     user = result.scalar_one_or_none()
 
-    if not user or not user.reset_token_expires or user.reset_token_expires < datetime.now(timezone.utc):
+    if (
+        not user
+        or not user.reset_token_expires
+        or user.reset_token_expires < datetime.now(timezone.utc)
+    ):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset token"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token"
         )
 
     # Validate new password length
     if len(data.new_password) < 8:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 8 characters"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 8 characters"
         )
 
     user.password_hash = get_password_hash(data.new_password)

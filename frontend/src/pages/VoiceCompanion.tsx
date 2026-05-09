@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Send, Square, Volume2, VolumeX, Monitor, Bot, User, Sparkles } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, VolumeX, Monitor, Bot, User, Sparkles } from 'lucide-react';
 import { sendVoiceCommand, createVoiceWebSocket } from '../lib/api';
 import { VoiceWebSocketMessage } from '../types/api';
 
@@ -33,7 +33,6 @@ export function VoiceCompanion() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -60,7 +59,7 @@ export function VoiceCompanion() {
     return () => {
       ws.close();
     };
-  }, []);
+  }, [handleWsMessage]);
 
   const handleWsMessage = useCallback((msg: VoiceWebSocketMessage) => {
     switch (msg.type) {

@@ -4,25 +4,33 @@ API Routes v2 - Updated for new agent loop architecture
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, desc
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import (
-    get_db, Database, ArticleModel, SourceModel, DigestModel,
-    ArticleResponse, ArticleListResponse, SourceResponse, SourceCreate,
-    DigestResponse, StatsResponse
-)
 from app.ai.orchestrator import get_orchestrator
-from app.core.scheduler import get_scheduler
-from app.core.memory import get_memory_store
-from app.core.config_manager import get_config_manager, get_config
-from app.api.user_routes import router as user_router
 from app.api.deps import get_current_user
+from app.api.user_routes import router as user_router
+from app.core.config_manager import get_config, get_config_manager
+from app.core.memory import get_memory_store
+from app.core.scheduler import get_scheduler
+from app.database import (
+    ArticleListResponse,
+    ArticleModel,
+    ArticleResponse,
+    Database,
+    DigestModel,
+    DigestResponse,
+    SourceCreate,
+    SourceModel,
+    SourceResponse,
+    StatsResponse,
+    get_db,
+)
 from app.models.user import UserModel
 
 logger = logging.getLogger(__name__)
@@ -34,11 +42,14 @@ router.include_router(user_router)
 
 # ========== Pydantic Models ==========
 
+
 class JobConfig(BaseModel):
     name: str = Field(..., description="Job name")
     type: str = Field(default="fetch", description="Pipeline type: fetch, process, or digest")
     cron: Optional[str] = Field(default=None, description="Cron expression (e.g., '0 8 * * *')")
-    interval: Optional[int] = Field(default=None, ge=1, description="Interval in seconds (alias for interval_seconds)")
+    interval: Optional[int] = Field(
+        default=None, ge=1, description="Interval in seconds (alias for interval_seconds)"
+    )
     interval_seconds: Optional[int] = Field(default=None, ge=1, description="Interval in seconds")
     enabled: bool = Field(default=True, description="Whether job is enabled")
 
@@ -48,6 +59,7 @@ class JobToggle(BaseModel):
 
 
 # ========== Health & Status ==========
+
 
 @router.get("/health")
 async def health_check():
@@ -69,6 +81,7 @@ async def health_check():
 
 # ========== Articles ==========
 
+
 @router.get("/articles", response_model=ArticleListResponse)
 async def get_articles(
     processed: Optional[bool] = None,
@@ -76,53 +89,52 @@ async def get_articles(
     source: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Get articles with filtering and pagination"""
-    
+
     query = select(ArticleModel)
-    
+
     if processed is not None:
         query = query.where(ArticleModel.is_processed == processed)
     if category:
         query = query.where(ArticleModel.category == category)
     if source:
         query = query.where(ArticleModel.source == source)
-    
+
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
-    
+
     # Get paginated results
     query = query.order_by(desc(ArticleModel.fetched_at))
     query = query.offset((page - 1) * page_size).limit(page_size)
-    
+
     result = await db.execute(query)
     articles = result.scalars().all()
-    
+
     return ArticleListResponse(
         articles=[ArticleResponse.model_validate(a) for a in articles],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
 @router.get("/articles/{article_id}", response_model=ArticleResponse)
 async def get_article(article_id: int, db: AsyncSession = Depends(get_db)):
     """Get a single article"""
-    result = await db.execute(
-        select(ArticleModel).where(ArticleModel.id == article_id)
-    )
+    result = await db.execute(select(ArticleModel).where(ArticleModel.id == article_id))
     article = result.scalar_one_or_none()
-    
+
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    
+
     return ArticleResponse.model_validate(article)
 
 
 # ========== Article Categories ==========
+
 
 @router.get("/articles/categories")
 async def get_article_categories(db: AsyncSession = Depends(get_db)):
@@ -140,7 +152,7 @@ async def get_article_categories(db: AsyncSession = Depends(get_db)):
 async def search_articles(
     q: str = Query(..., min_length=1, max_length=100, description="Search query"),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Search articles by title, summary, or content using SQLite LIKE."""
     search_term = f"%{q}%"
@@ -160,16 +172,17 @@ async def search_articles(
     return {
         "query": q,
         "articles": [ArticleResponse.model_validate(a) for a in articles],
-        "total": len(articles)
+        "total": len(articles),
     }
 
 
 # ========== Sources ==========
 
+
 @router.get("/sources", response_model=List[SourceResponse])
 async def get_sources(
     enabled_only: bool = Query(True, description="Filter to enabled sources only"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Get RSS sources"""
     query = select(SourceModel)
@@ -183,90 +196,76 @@ async def get_sources(
 @router.post("/sources", response_model=SourceResponse)
 async def create_source(source: SourceCreate, db: AsyncSession = Depends(get_db)):
     """Create a new RSS source"""
-    
+
     # Check if URL already exists
-    existing = await db.execute(
-        select(SourceModel).where(SourceModel.url == source.url)
-    )
+    existing = await db.execute(select(SourceModel).where(SourceModel.url == source.url))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Source URL already exists")
-    
+
     new_source = SourceModel(
-        name=source.name,
-        url=source.url,
-        category=source.category,
-        enabled=source.enabled
+        name=source.name, url=source.url, category=source.category, enabled=source.enabled
     )
     db.add(new_source)
     await db.commit()
     await db.refresh(new_source)
-    
+
     return SourceResponse.model_validate(new_source)
 
 
 @router.put("/sources/{source_id}", response_model=SourceResponse)
 async def update_source(
-    source_id: int,
-    source_update: SourceCreate,
-    db: AsyncSession = Depends(get_db)
+    source_id: int, source_update: SourceCreate, db: AsyncSession = Depends(get_db)
 ):
     """Update an RSS source"""
-    result = await db.execute(
-        select(SourceModel).where(SourceModel.id == source_id)
-    )
+    result = await db.execute(select(SourceModel).where(SourceModel.id == source_id))
     source = result.scalar_one_or_none()
-    
+
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
-    
+
     # Check if new URL conflicts with another source
     if source_update.url != source.url:
-        existing = await db.execute(
-            select(SourceModel).where(SourceModel.url == source_update.url)
-        )
+        existing = await db.execute(select(SourceModel).where(SourceModel.url == source_update.url))
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Source URL already exists")
-    
+
     source.name = source_update.name
     source.url = source_update.url
     source.category = source_update.category
     source.enabled = source_update.enabled
-    
+
     await db.commit()
     await db.refresh(source)
-    
+
     return SourceResponse.model_validate(source)
 
 
 @router.delete("/sources/{source_id}")
 async def delete_source(source_id: int, db: AsyncSession = Depends(get_db)):
     """Delete an RSS source"""
-    result = await db.execute(
-        select(SourceModel).where(SourceModel.id == source_id)
-    )
+    result = await db.execute(select(SourceModel).where(SourceModel.id == source_id))
     source = result.scalar_one_or_none()
-    
+
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
-    
+
     await db.delete(source)
     await db.commit()
-    
+
     return {"success": True, "message": "Source deleted"}
 
 
 @router.post("/sources/fetch")
 async def fetch_all_sources(
-    source_ids: Optional[List[int]] = None,
-    background_tasks: BackgroundTasks = None
+    source_ids: Optional[List[int]] = None, background_tasks: BackgroundTasks = None
 ):
     """Trigger fetch for all or specified sources"""
     from app.tools.fetch_tool import FetchTool
-    
+
     async def run_fetch(ids):
         tool = FetchTool()
         await tool.execute(source_ids=ids)
-    
+
     if background_tasks is not None:
         background_tasks.add_task(run_fetch, source_ids)
         return {"message": "Fetch started in background"}
@@ -277,36 +276,31 @@ async def fetch_all_sources(
 
 @router.post("/sources/{source_id}/fetch")
 async def fetch_source(
-    source_id: int,
-    background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    source_id: int, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)
 ):
     """Fetch articles from a specific source"""
-    result = await db.execute(
-        select(SourceModel).where(SourceModel.id == source_id)
-    )
+    result = await db.execute(select(SourceModel).where(SourceModel.id == source_id))
     source = result.scalar_one_or_none()
-    
+
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
-    
+
     from app.tools.fetch_tool import FetchTool
-    
+
     async def run_fetch():
         tool = FetchTool()
         await tool.execute(source_ids=[source_id])
-    
+
     background_tasks.add_task(run_fetch)
     return {"message": f"Fetch started for source {source_id}"}
 
 
 # ========== Agent Loop / Pipelines ==========
 
+
 @router.post("/pipeline/{task_type}")
 async def run_pipeline(
-    task_type: str,
-    background_tasks: BackgroundTasks,
-    params: Optional[Dict[str, Any]] = None
+    task_type: str, background_tasks: BackgroundTasks, params: Optional[Dict[str, Any]] = None
 ):
     """
     Run a pipeline task using the AI orchestrator.
@@ -326,11 +320,7 @@ async def run_pipeline(
 
     try:
         result = await orchestrator.run_pipeline(task_type, **params)
-        return {
-            "success": result.get("success", False),
-            "task_type": task_type,
-            "result": result
-        }
+        return {"success": result.get("success", False), "task_type": task_type, "result": result}
     except Exception as e:
         logger.error(f"Pipeline error: {e}")
         raise HTTPException(status_code=500, detail="Pipeline execution failed")
@@ -349,7 +339,10 @@ async def list_tools():
             {"name": "trend", "description": "Detect emerging trends"},
         ],
         "graphs": [
-            {"name": "article_processing", "description": "Parallel summarize -> critique -> memory"},
+            {
+                "name": "article_processing",
+                "description": "Parallel summarize -> critique -> memory",
+            },
             {"name": "digest_generation", "description": "Cluster -> synthesize -> deliver"},
             {"name": "full_pipeline", "description": "fetch -> process -> digest"},
         ],
@@ -358,19 +351,14 @@ async def list_tools():
 
 @router.post("/agents/{agent_name}")
 async def run_agent(
-    agent_name: str,
-    params: Dict[str, Any],
-    current_user: UserModel = Depends(get_current_user)
+    agent_name: str, params: Dict[str, Any], current_user: UserModel = Depends(get_current_user)
 ):
     """Execute a specific AI agent directly (requires authentication)"""
     orchestrator = get_orchestrator()
 
     allowed = {"summarize", "critique", "cluster", "synthesize", "trends"}
     if agent_name not in allowed:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Agent '{agent_name}' is not allowed via API"
-        )
+        raise HTTPException(status_code=403, detail=f"Agent '{agent_name}' is not allowed via API")
 
     if agent_name == "summarize":
         result = await orchestrator.summarize(
@@ -395,6 +383,7 @@ async def run_agent(
 
 
 # ========== Scheduler ==========
+
 
 @router.get("/scheduler/jobs")
 async def list_scheduled_jobs():
@@ -433,7 +422,9 @@ async def add_scheduled_job(job_config: JobConfig):
                 callback=run_pipeline,
             )
         else:
-            raise HTTPException(status_code=400, detail="Must specify cron or interval/interval_seconds")
+            raise HTTPException(
+                status_code=400, detail="Must specify cron or interval/interval_seconds"
+            )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -477,10 +468,10 @@ async def delete_scheduled_job(job_id: str):
     """Remove a scheduled job"""
     scheduler = get_scheduler()
     removed = scheduler.remove_job(job_id)
-    
+
     if not removed:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     return {"success": True, "message": f"Job {job_id} removed"}
 
 
@@ -489,20 +480,21 @@ async def run_scheduled_job(job_id: str):
     """Manually trigger a scheduled job to run immediately"""
     scheduler = get_scheduler()
     job = scheduler.get_job(job_id)
-    
+
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     if job.status.value == "running":
         raise HTTPException(status_code=409, detail="Job is already running")
-    
+
     # Run the job in the background
     asyncio.create_task(scheduler._execute_job(job))
-    
+
     return {"success": True, "message": f"Job {job_id} triggered"}
 
 
 # ========== Memory ==========
+
 
 @router.get("/memory/stats")
 async def get_memory_stats():
@@ -522,61 +514,49 @@ async def get_memory_interests():
 async def remember_article(article_id: int):
     """Store an article in memory"""
     memory = get_memory_store()
-    
+
     from app.database import Database
+
     async with Database.get_session() as db:
-        result = await db.execute(
-            select(ArticleModel).where(ArticleModel.id == article_id)
-        )
+        result = await db.execute(select(ArticleModel).where(ArticleModel.id == article_id))
         article = result.scalar_one_or_none()
-        
+
         if not article:
             raise HTTPException(status_code=404, detail="Article not found")
-        
+
         unit = memory.remember_article(
             article_id=article.id,
             title=article.title,
             summary=article.summary or "",
             category=article.category or "General",
             source=article.source,
-            key_points=article.key_points or []
+            key_points=article.key_points or [],
         )
-        
-        return {
-            "success": True,
-            "memory_id": unit.id,
-            "category": unit.category
-        }
+
+        return {"success": True, "memory_id": unit.id, "category": unit.category}
 
 
 @router.post("/memory/search")
 async def search_memory(query: Dict[str, Any]):
     """Search memory for similar content"""
     memory = get_memory_store()
-    
+
     results = memory.retrieve(
-        category=query.get("category"),
-        entities=query.get("entities"),
-        limit=query.get("limit", 10)
+        category=query.get("category"), entities=query.get("entities"), limit=query.get("limit", 10)
     )
-    
-    return {
-        "results": [r.to_dict() for r in results]
-    }
+
+    return {"results": [r.to_dict() for r in results]}
 
 
 # ========== Articles Single Operations ==========
 
+
 @router.post("/articles/{article_id}/summarize")
 async def summarize_single_article(
-    article_id: int,
-    background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    article_id: int, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)
 ):
     """Trigger summarization for a single article via pydantic-ai"""
-    result = await db.execute(
-        select(ArticleModel).where(ArticleModel.id == article_id)
-    )
+    result = await db.execute(select(ArticleModel).where(ArticleModel.id == article_id))
     article = result.scalar_one_or_none()
 
     if not article:
@@ -601,16 +581,12 @@ async def summarize_single_article(
 
 # ========== Digests ==========
 
+
 @router.get("/digests", response_model=List[DigestResponse])
-async def get_digests(
-    limit: int = Query(10, ge=1, le=50),
-    db: AsyncSession = Depends(get_db)
-):
+async def get_digests(limit: int = Query(10, ge=1, le=50), db: AsyncSession = Depends(get_db)):
     """Get recent digests"""
     result = await db.execute(
-        select(DigestModel)
-        .order_by(desc(DigestModel.created_at))
-        .limit(limit)
+        select(DigestModel).order_by(desc(DigestModel.created_at)).limit(limit)
     )
     digests = result.scalars().all()
     return [DigestResponse.model_validate(d) for d in digests]
@@ -619,24 +595,23 @@ async def get_digests(
 @router.get("/digests/{digest_id}", response_model=DigestResponse)
 async def get_digest(digest_id: int, db: AsyncSession = Depends(get_db)):
     """Get a specific digest with its articles"""
-    result = await db.execute(
-        select(DigestModel).where(DigestModel.id == digest_id)
-    )
+    result = await db.execute(select(DigestModel).where(DigestModel.id == digest_id))
     digest = result.scalar_one_or_none()
-    
+
     if not digest:
         raise HTTPException(status_code=404, detail="Digest not found")
-    
+
     # Load articles
     articles_result = await db.execute(
         select(ArticleModel).where(ArticleModel.digest_id == digest_id)
     )
     digest.articles = articles_result.scalars().all()
-    
+
     return DigestResponse.model_validate(digest)
 
 
 # ========== AI Features ==========
+
 
 class ClusterRequest(BaseModel):
     article_ids: List[int] = Field(..., description="Article IDs to cluster")
@@ -644,8 +619,7 @@ class ClusterRequest(BaseModel):
 
 @router.post("/articles/cluster")
 async def cluster_articles_endpoint(
-    request: ClusterRequest,
-    current_user: UserModel = Depends(get_current_user)
+    request: ClusterRequest, current_user: UserModel = Depends(get_current_user)
 ):
     """Cluster articles by topic using AI"""
     orchestrator = get_orchestrator()
@@ -660,8 +634,7 @@ class SynthesizeRequest(BaseModel):
 
 @router.post("/articles/synthesize")
 async def synthesize_articles_endpoint(
-    request: SynthesizeRequest,
-    current_user: UserModel = Depends(get_current_user)
+    request: SynthesizeRequest, current_user: UserModel = Depends(get_current_user)
 ):
     """Synthesize multiple sources on a shared topic"""
     orchestrator = get_orchestrator()
@@ -672,7 +645,7 @@ async def synthesize_articles_endpoint(
 @router.get("/articles/trends")
 async def detect_trends_endpoint(
     article_ids: Optional[List[int]] = Query(None),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(get_current_user),
 ):
     """Detect emerging trends from articles"""
     orchestrator = get_orchestrator()
@@ -684,7 +657,7 @@ async def detect_trends_endpoint(
 async def reason_article_inclusion(
     article_id: int,
     current_user: UserModel = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Explain why an article is relevant to the current user"""
     from app.models.user import UserPreferencesModel
@@ -705,34 +678,33 @@ async def reason_article_inclusion(
 
 # ========== Stats ==========
 
+
 @router.get("/stats", response_model=StatsResponse)
 async def get_stats(db: AsyncSession = Depends(get_db)):
     """Get system statistics"""
-    
+
     # Article counts
     total_result = await db.execute(select(func.count()).select_from(ArticleModel))
     total = total_result.scalar()
-    
+
     processed_result = await db.execute(
-        select(func.count())
-        .select_from(ArticleModel)
-        .where(ArticleModel.is_processed == True)
+        select(func.count()).select_from(ArticleModel).where(ArticleModel.is_processed == True)
     )
     processed = processed_result.scalar()
-    
+
     # Source counts
     sources_result = await db.execute(select(func.count()).select_from(SourceModel))
     total_sources = sources_result.scalar()
-    
+
     active_result = await db.execute(
         select(func.count()).select_from(SourceModel).where(SourceModel.enabled == True)
     )
     active_sources = active_result.scalar()
-    
+
     # Digest count
     digests_result = await db.execute(select(func.count()).select_from(DigestModel))
     total_digests = digests_result.scalar()
-    
+
     # Categories
     cat_result = await db.execute(
         select(ArticleModel.category, func.count())
@@ -740,12 +712,10 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         .group_by(ArticleModel.category)
     )
     categories = {cat: count for cat, count in cat_result.all()}
-    
+
     # Recent activity
     recent_result = await db.execute(
-        select(ArticleModel)
-        .order_by(desc(ArticleModel.fetched_at))
-        .limit(5)
+        select(ArticleModel).order_by(desc(ArticleModel.fetched_at)).limit(5)
     )
     recent = [
         {
@@ -753,15 +723,15 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
             "title": a.title,
             "source": a.source,
             "action": "processed" if a.is_processed else "fetched",
-            "time": a.fetched_at.isoformat()
+            "time": a.fetched_at.isoformat(),
         }
         for a in recent_result.scalars().all()
     ]
-    
+
     # Memory stats
     memory = get_memory_store()
     mem_stats = memory.get_stats()
-    
+
     return StatsResponse(
         total_articles=total,
         processed_articles=processed,
@@ -771,17 +741,18 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         active_sources=active_sources,
         categories=categories,
         recent_activity=recent,
-        memory_units=mem_stats.get("total_units", 0)
+        memory_units=mem_stats.get("total_units", 0),
     )
 
 
 # ========== Config ==========
 
+
 @router.get("/config")
 async def get_configuration():
     """Get current configuration (safe values only)"""
     config = get_config()
-    
+
     return {
         "name": config.name,
         "version": config.version,
@@ -794,8 +765,8 @@ async def get_configuration():
         "pipeline": {
             "max_articles": config.pipeline.max_articles_per_source,
             "critic_min_score": config.pipeline.critic_min_score,
-            "auto_process": config.pipeline.auto_process_enabled
-        }
+            "auto_process": config.pipeline.auto_process_enabled,
+        },
     }
 
 

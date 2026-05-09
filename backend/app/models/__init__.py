@@ -1,16 +1,26 @@
 """User and personalization models"""
 
 from .user import (
-    UserModel, UserPreferencesModel, UserInteractionModel, PersonalizedDigestModel,
-    UserCreate, UserResponse, UserPreferencesUpdate, UserPreferencesResponse,
-    UserInteractionCreate, UserInteractionResponse, ArticleFeedback,
-    PersonalizedDigestResponse, OnboardingData, UserStats
+    ArticleFeedback,
+    OnboardingData,
+    PersonalizedDigestModel,
+    PersonalizedDigestResponse,
+    UserCreate,
+    UserInteractionCreate,
+    UserInteractionModel,
+    UserInteractionResponse,
+    UserModel,
+    UserPreferencesModel,
+    UserPreferencesResponse,
+    UserPreferencesUpdate,
+    UserResponse,
+    UserStats,
 )
 
 __all__ = [
     # SQLAlchemy Models
     "UserModel",
-    "UserPreferencesModel", 
+    "UserPreferencesModel",
     "UserInteractionModel",
     "PersonalizedDigestModel",
     # Pydantic Schemas

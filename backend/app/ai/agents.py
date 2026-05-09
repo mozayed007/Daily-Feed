@@ -98,6 +98,7 @@ trend_agent = create_agent(
 
 # ── Helper wrappers ─────────────────────────────────────────────────────────
 
+
 async def summarize_article(title: str, content: str, style: str = "concise") -> SummaryResult:
     """Summarize a single article via pydantic-ai agent."""
     style_instruction = {
@@ -160,17 +161,14 @@ async def cluster_articles(
 
     prompt = (
         "Group the following articles into thematic clusters. "
-        "Return clusters with topic, summary, article IDs, and confidence.\n\n"
-        + "\n\n".join(lines)
+        "Return clusters with topic, summary, article IDs, and confidence.\n\n" + "\n\n".join(lines)
     )
 
     result = await cluster_agent.run(prompt)
     return result.data.clusters
 
 
-async def synthesize_multi_source(
-    topic: str, articles: List[dict]
-) -> MultiSourceSynthesis:
+async def synthesize_multi_source(topic: str, articles: List[dict]) -> MultiSourceSynthesis:
     """Synthesize multiple sources on a shared topic."""
     lines = []
     for a in articles:
@@ -215,9 +213,8 @@ async def reason_digest_inclusion(
 async def detect_trends(article_texts: List[str]) -> TrendList:
     """Detect trends from a batch of articles."""
     lines = [f"- {t[:200]}..." for t in article_texts]
-    prompt = (
-        "Analyze these recent news articles and identify emerging trends:\n\n"
-        + "\n".join(lines)
+    prompt = "Analyze these recent news articles and identify emerging trends:\n\n" + "\n".join(
+        lines
     )
     result = await trend_agent.run(prompt)
     return result.data

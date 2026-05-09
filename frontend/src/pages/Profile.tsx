@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Calendar, Settings, BarChart3, ChevronRight, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Calendar, Settings, BarChart3, ChevronRight, Lock, Eye, EyeOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useUser, useUserStats, useChangePassword } from '../hooks/useUser';
 import { StatsCardSkeleton } from '../components/Skeleton';

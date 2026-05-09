@@ -12,6 +12,7 @@ Voice IDs (American English):
   am_adam    — calm male (default "Jarvis")
   am_echo    — bright male
 """
+
 from __future__ import annotations
 
 import io
@@ -49,8 +50,10 @@ class KokoroTTSEngine:
             import onnxruntime as ort
             from huggingface_hub import hf_hub_download
         except ImportError as exc:
-            raise ImportError("Kokoro TTS requires 'onnxruntime' and 'huggingface_hub'. "
-                              "Run: pip install onnxruntime huggingface_hub") from exc
+            raise ImportError(
+                "Kokoro TTS requires 'onnxruntime' and 'huggingface_hub'. "
+                "Run: pip install onnxruntime huggingface_hub"
+            ) from exc
 
         logger.info("Downloading Kokoro ONNX model from %s ...", self._repo)
         model_path = hf_hub_download(
@@ -71,6 +74,7 @@ class KokoroTTSEngine:
         )
         logger.info("Loading voice pack %s ...", self.voice)
         import torch
+
         self._voices[self.voice] = torch.load(voice_path, map_location="cpu", weights_only=True)
 
         logger.info("Kokoro TTS ready (voice=%s).", self.voice)
@@ -86,6 +90,7 @@ class KokoroTTSEngine:
         """
         try:
             import espeakng
+
             e = espeakng.ESpeakNG()
             e.voice = "en"
             phonemes = e.g2p(text)
@@ -222,6 +227,7 @@ class KokoroTTSEngine:
     async def text_to_speech(self, text: str, play: bool = True) -> bytes:
         """Async-friendly TTS; returns MP3-ish bytes if needed."""
         import asyncio
+
         audio, sr = await asyncio.to_thread(self.synthesize, text)
         if play:
             await asyncio.to_thread(self.play_audio, audio, sr)

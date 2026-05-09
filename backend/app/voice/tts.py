@@ -13,6 +13,7 @@ Edge-TTS (fallback):
   - No local model needed, works instantly
   - Voices: en-US-GuyNeural, en-GB-SoniaNeural
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -29,7 +30,7 @@ import sounddevice as sd
 logger = logging.getLogger("voice.tts")
 
 # Default persona voices
-JARVIS_VOICE = "am_adam"   # Kokoro male
+JARVIS_VOICE = "am_adam"  # Kokoro male
 FRIDAY_VOICE = "af_heart"  # Kokoro female
 
 
@@ -49,6 +50,7 @@ class TTSEngine:
             return
         try:
             from app.voice.kokoro_tts import KokoroTTSEngine
+
             self._kokoro = KokoroTTSEngine(voice=self.voice)
             logger.info("Kokoro TTS loaded (voice=%s).", self.voice)
         except Exception as exc:
@@ -60,11 +62,9 @@ class TTSEngine:
             return
         try:
             import edge_tts
+
             # Map Kokoro voice names to Edge voice names
-            edge_voice = (
-                "en-US-GuyNeural" if self.voice.startswith("am_")
-                else "en-GB-SoniaNeural"
-            )
+            edge_voice = "en-US-GuyNeural" if self.voice.startswith("am_") else "en-GB-SoniaNeural"
             self._edge = edge_tts.Communicate("", edge_voice)
             logger.info("Edge-TTS fallback ready (voice=%s).", edge_voice)
         except Exception as exc:
@@ -108,18 +108,18 @@ class TTSEngine:
     def _edge_speak(self, text: str) -> None:
         try:
             import edge_tts
-            edge_voice = (
-                "en-US-GuyNeural" if self.voice.startswith("am_")
-                else "en-GB-SoniaNeural"
-            )
+
+            edge_voice = "en-US-GuyNeural" if self.voice.startswith("am_") else "en-GB-SoniaNeural"
             communicate = edge_tts.Communicate(text, edge_voice)
             mp3_bytes = b""
             import asyncio
+
             async def collect():
                 nonlocal mp3_bytes
                 async for chunk in communicate.stream():
                     if chunk["type"] == "audio":
                         mp3_bytes += chunk["data"]
+
             asyncio.run(collect())
             self._play_mp3_bytes(mp3_bytes)
         except Exception as exc:
@@ -128,10 +128,8 @@ class TTSEngine:
 
     async def _edge_text_to_speech(self, text: str, play: bool = True) -> bytes:
         import edge_tts
-        edge_voice = (
-            "en-US-GuyNeural" if self.voice.startswith("am_")
-            else "en-GB-SoniaNeural"
-        )
+
+        edge_voice = "en-US-GuyNeural" if self.voice.startswith("am_") else "en-GB-SoniaNeural"
         communicate = edge_tts.Communicate(text, edge_voice)
         mp3_bytes = b""
         async for chunk in communicate.stream():
@@ -145,6 +143,7 @@ class TTSEngine:
         """Decode MP3 and play through speakers."""
         try:
             from pydub import AudioSegment
+
             audio = AudioSegment.from_mp3(io.BytesIO(mp3_bytes))
             samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
             if audio.channels == 2:
@@ -160,7 +159,8 @@ class TTSEngine:
             try:
                 subprocess.run(
                     [sys.executable, "-m", "edge_tts", "--play", path],
-                    check=False, capture_output=True
+                    check=False,
+                    capture_output=True,
                 )
             finally:
                 Path(path).unlink(missing_ok=True)
