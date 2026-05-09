@@ -50,7 +50,7 @@ numpy>=1.26.0                # Audio array manipulation
 edge-tts>=7.0.0              # Fallback TTS (if Kokoro ONNX fails)
 
 # Testing
-pytest>=7.4.3
+pytest>=9.0.3
 pytest-asyncio>=0.21.1
 pytest-cov>=4.1.0
 httpx>=0.25.0
