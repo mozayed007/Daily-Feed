@@ -182,7 +182,11 @@ class PersonalizationEngine:
         if not article.published_at:
             return 0.5  # Neutral for unknown dates
 
-        age = datetime.now(timezone.utc).replace(tzinfo=None) - article.published_at
+        age = (
+            datetime.now(timezone.utc) - article.published_at.replace(tzinfo=timezone.utc)
+            if article.published_at.tzinfo is None
+            else datetime.now(timezone.utc) - article.published_at
+        )
         age_hours = age.total_seconds() / 3600
 
         # Exponential decay
