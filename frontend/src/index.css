@@ -48,10 +48,6 @@
     --ring: 224.3 76.3% 48%;
   }
 
-  * {
-    @apply border-border;
-  }
-
   body {
     @apply antialiased;
     background-color: hsl(var(--background));
