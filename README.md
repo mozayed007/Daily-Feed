@@ -440,21 +440,21 @@ Docs:        5 comprehensive guides
 
 | Variable            | Description                                        | Default                               |
 | ------------------- | -------------------------------------------------- | ------------------------------------- |
-| `DAILYFEED_LLM_PROVIDER` | LLM provider (ollama/openai/anthropic/gemini/fireworks) | ollama                                |
-| `DAILYFEED_OLLAMA_URL`   | Ollama server URL                             | `http://localhost:11434`              |
-| `DAILYFEED_OLLAMA_MODEL` | Model to use                                  | llama3.2                              |
-| `OPENAI_API_KEY`         | OpenAI API key                                | -                                     |
-| `ANTHROPIC_API_KEY`      | Anthropic API key                             | -                                     |
-| `GEMINI_API_KEY`         | Google Gemini API key                         | -                                     |
-| `GEMINI_MODEL`           | Gemini model name                             | `gemini-3.1-flash-lite`               |
-| `FIREWORKS_API_KEY`      | Fireworks AI API key                          | -                                     |
-| `FIREWORKS_MODEL`        | Fireworks model name                          | `accounts/fireworks/routers/kimi-k2p6-turbo` |
-| `FIREWORKS_BASE_URL`     | Fireworks API base URL                        | `https://api.fireworks.ai/inference/v1` |
-| `ENABLE_WEB_SEARCH`      | Enable provider-adaptive web search capability | `true`                                |
-| `ENABLE_URL_FETCH`       | Enable provider-adaptive URL fetch capability  | `true`                                |
-| `DAILYFEED_DATABASE_URL` | SQLite connection string                      | sqlite+aiosqlite:///data/dailyfeed.db |
+| `LLM_PROVIDER`      | LLM provider (ollama/openai/anthropic/gemini/fireworks) | ollama                           |
+| `OLLAMA_URL`        | Ollama server URL                                   | `http://localhost:11434`              |
+| `OLLAMA_MODEL`      | Model to use                                        | llama3.2                              |
+| `OPENAI_API_KEY`    | OpenAI API key                                      | -                                     |
+| `ANTHROPIC_API_KEY` | Anthropic API key                                   | -                                     |
+| `GEMINI_API_KEY`    | Google Gemini API key                               | -                                     |
+| `GEMINI_MODEL`      | Gemini model name                                   | `gemini-3.1-flash-lite`               |
+| `FIREWORKS_API_KEY` | Fireworks AI API key                                | -                                     |
+| `FIREWORKS_MODEL`   | Fireworks model name                                | `accounts/fireworks/routers/kimi-k2p6-turbo` |
+| `FIREWORKS_BASE_URL`| Fireworks API base URL                              | `https://api.fireworks.ai/inference/v1` |
+| `ENABLE_WEB_SEARCH` | Enable provider-adaptive web search capability      | `true`                                |
+| `ENABLE_URL_FETCH`  | Enable provider-adaptive URL fetch capability       | `true`                                |
+| `DATABASE_URL`      | SQLite connection string                            | sqlite+aiosqlite:///data/dailyfeed.db |
 
-Most runtime config keys use the `DAILYFEED_` prefix. API keys are read directly without that prefix.
+Runtime configuration uses the variable names above. API keys are also read directly using the names shown here.
 
 ## 🗄️ Database Migrations
 
