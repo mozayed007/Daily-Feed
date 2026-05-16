@@ -22,7 +22,7 @@ trafilatura>=2.0.0  # URL-to-clean-text extraction for article pipeline
 # HTTP Client
 httpx>=0.25.0  # For async HTTP with timeouts
 aiohttp>=3.13.5
-requests>=2.33.1
+requests>=2.34.2
 
 # AI/LLM - Unified via litellm through pydantic-ai
 pydantic-ai>=1.93.0
