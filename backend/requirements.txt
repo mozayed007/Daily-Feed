@@ -36,7 +36,7 @@ python-dateutil>=2.8.2
 python-jose[cryptography]>=3.3.0
 structlog>=23.2.0
 tenacity>=8.2.3  # Retry logic
-validators>=0.22.0  # URL validation
+validators>=0.35.0  # URL validation
 slowapi>=0.1.9  # Rate limiting
 
 # Voice Assistant (Jarvis / Friday) — Local AI models from Hugging Face
