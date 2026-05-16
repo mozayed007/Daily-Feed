@@ -21,7 +21,7 @@
     "framer-motion": "^12.31.0",
     "lucide-react": "^0.294.0",
     "react": "^19.2.6",
-    "react-dom": "^18.2.0",
+    "react-dom": "^19.2.6",
     "react-router-dom": "^7.13.0",
     "recharts": "^2.10.0",
     "tailwind-merge": "^3.5.0"
@@ -32,7 +32,7 @@
     "@testing-library/user-event": "^14.5.1",
     "@types/node": "^25.6.2",
     "@types/react": "^19.2.14",
-    "@types/react-dom": "^18.2.15",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
     "@vitejs/plugin-react": "^4.2.0",
