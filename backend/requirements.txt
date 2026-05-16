@@ -45,7 +45,7 @@ huggingface-hub>=0.21      # Download Kokoro & Distil-Whisper weights from HF
 onnxruntime>=1.17            # Kokoro ONNX inference (local, no cloud)
 soundfile>=0.12              # Audio file I/O for Kokoro output
 sounddevice>=0.5.5           # Microphone + speaker audio I/O
-duckduckgo-search>=8.0.0     # Free web search, no API key
+duckduckgo-search>=8.1.1     # Free web search, no API key
 numpy>=1.26.0                # Audio array manipulation
 edge-tts>=7.0.0              # Fallback TTS (if Kokoro ONNX fails)
 
