@@ -28,7 +28,7 @@ pydantic-ai>=1.93.0
 pydantic-graph>=0.0.21
 pydantic-ai-litellm>=0.2.0
 litellm>=1.59.0
-ollama>=0.1.0
+ollama>=0.6.2
 
 # Utilities
 pyyaml>=6.0
