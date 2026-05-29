@@ -128,6 +128,16 @@ daily-feed/
 - **Tailwind CSS** - Beautiful, responsive design
 - **Full Type Safety** - TypeScript frontend, Pydantic backend
 
+### 🤖 Agent Experience (AX)
+
+- **MCP Server** - Standard protocol for AI agents to consume Daily Feed as a tool server
+- **14 Atomic Tools** - `get_briefing`, `list_articles`, `search_articles`, `detect_trends`, `cluster_articles`, `synthesize_topic`, and more
+- **3 Resources** - `daily://digest/latest`, `daily://interests`, `daily://config`
+- **3 Prompts** - `morning_briefing`, `evening_roundup`, `topic_deep_dive`
+- **Agent Skills** - Markdown routines that tell agents how to compose tools into workflows
+- **CLI** - `daily-feed` command for agents that don't support MCP (Pi, Kilo CLI, custom scripts)
+- **Agent-Friendly Output** - JSON by default, compact payloads, structured summaries
+
 ---
 
 ## 🛠️ Development Commands
@@ -180,6 +190,86 @@ cd backend && mypy app/
 make frontend-lint
 cd frontend && bun run format
 ```
+
+---
+
+## 🤖 Agent Integration (MCP)
+
+Daily Feed exposes an MCP server that AI agents can connect to as a tool provider.
+
+### Setup
+
+Copy `mcp.json` to your agent's config directory:
+
+```bash
+# Claude Desktop
+cp mcp.json ~/.claude/mcp.json
+
+# Cursor
+cp mcp.json .cursor/mcp.json
+
+# VS Code (settings.json)
+# Add the mcp.json content to your VS Code settings
+```
+
+### Running the MCP server
+
+```bash
+cd backend
+python -m app.mcp.server
+```
+
+### Available tools
+
+| Tool | Description |
+|------|-------------|
+| `get_briefing(time)` | Get a personalized digest (morning/evening) |
+| `list_articles(filters)` | List articles with category/source/processed filters |
+| `search_articles(query)` | Full-text search across articles |
+| `get_article(id)` | Get full article with content and metadata |
+| `summarize_article(id, style)` | AI-summarize (concise/detailed/bullet_points) |
+| `detect_trends()` | Find emerging topics |
+| `cluster_articles(ids)` | Group articles by topic |
+| `synthesize_topic(topic, ids)` | Merge multi-source coverage |
+| `explain_relevance(id)` | Why an article matches user interests |
+| `get_user_interests()` | Get learned user preferences |
+| `get_sources()` | List RSS sources |
+| `trigger_fetch()` | Fetch new articles |
+| `get_stats()` | System statistics |
+| `run_pipeline(type)` | Execute pipeline (fetch/process/digest/full/trends/cluster/synthesize) |
+
+### Agent skills
+
+Pre-built routines in `skills/` that tell agents how to compose tools:
+
+- `morning-briefing.md` - Morning news briefing workflow
+- `evening-roundup.md` - End-of-day digest workflow
+- `topic-deep-dive.md` - Deep exploration of a topic
+- `weekly-synthesis.md` - Weekly recap workflow
+
+### CLI
+
+```bash
+# From project root
+python -m cli briefing --time morning
+python -m cli articles --category Tech --limit 5
+python -m cli search "AI regulation"
+python -m cli trends
+python -m cli stats
+
+# JSON output (default, for agents)
+python -m cli stats
+
+# Human-readable output
+python -m cli stats --format text
+```
+
+### Environment variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DAILY_FEED_URL` | Backend URL | `http://localhost:8000` |
+| `DAILY_FEED_TOKEN` | JWT token for authenticated endpoints | (optional) |
 
 ---
 
@@ -431,6 +521,9 @@ Docs:        5 comprehensive guides
 - [x] **Trends page** - Frontend for AI trend detection
 - [x] **Voice Assistant (Jarvis/Friday)** - Local STT/TTS, wake-word, push-to-talk, tool calling, web search, dashboard launcher
 - [x] **Tauri Desktop Companion** - Standalone Rust + React app with system tray, global shortcuts, CPAL audio, WebSocket backend connection
+- [x] **MCP Server** - 14 atomic tools, 3 resources, 3 prompts for AI agent integration (Claude, Cursor, Codex, OpenCode, etc.)
+- [x] **Agent Skills** - Markdown routines for morning briefing, evening roundup, topic deep-dive, weekly synthesis
+- [x] **CLI** - `daily-feed` command with 10 subcommands, JSON output for agents, text output for humans
 
 ---
 
@@ -453,6 +546,8 @@ Docs:        5 comprehensive guides
 | `ENABLE_WEB_SEARCH` | Enable provider-adaptive web search capability      | `true`                                |
 | `ENABLE_URL_FETCH`  | Enable provider-adaptive URL fetch capability       | `true`                                |
 | `DATABASE_URL`      | SQLite connection string                            | sqlite+aiosqlite:///data/dailyfeed.db |
+| `DAILY_FEED_URL`    | Backend URL for MCP server and CLI                  | `http://localhost:8000`               |
+| `DAILY_FEED_TOKEN`  | JWT token for authenticated MCP/CLI endpoints       | (optional)                            |
 
 Runtime configuration uses the variable names above. API keys are also read directly using the names shown here.
 

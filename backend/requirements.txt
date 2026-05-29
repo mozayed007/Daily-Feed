@@ -17,6 +17,7 @@ alembic>=1.18.4  # Database migrations
 feedparser>=6.0.12
 beautifulsoup4>=4.12.2
 lxml>=4.9.3
+trafilatura>=2.0.0  # URL-to-clean-text extraction for article pipeline
 
 # HTTP Client
 httpx>=0.25.0  # For async HTTP with timeouts
@@ -48,6 +49,9 @@ sounddevice>=0.5.5           # Microphone + speaker audio I/O
 duckduckgo-search>=8.0.0     # Free web search, no API key
 numpy>=1.26.0                # Audio array manipulation
 edge-tts>=7.0.0              # Fallback TTS (if Kokoro ONNX fails)
+
+# MCP Server (Agent Experience)
+mcp>=1.0.0
 
 # Testing
 pytest>=9.0.3

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "daily-feed": {
+      "command": "python",
+      "args": ["-m", "app.mcp.server"],
+      "cwd": "backend",
+      "env": {
+        "DAILY_FEED_URL": "http://localhost:8000",
+        "DAILY_FEED_TOKEN": ""
+      }
+    }
+  }
+}
