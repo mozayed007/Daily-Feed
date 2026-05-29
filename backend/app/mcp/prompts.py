@@ -50,7 +50,7 @@ def register_prompts(mcp: FastMCP) -> None:
         return (
             f"You are investigating the topic: {topic}\n\n"
             "Steps:\n"
-            f"1. Call search_articles('{topic}', limit=20) to find relevant articles.\n"
+            "1. Call search_articles with the topic as the query, limit=20.\n"
             "2. Call cluster_articles() on the returned IDs to find sub-themes.\n"
             "3. For each cluster, call synthesize_topic() to merge perspectives.\n"
             "4. Call detect_trends() to see if this topic is emerging or fading.\n"

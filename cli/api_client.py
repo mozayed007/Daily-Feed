@@ -41,9 +41,9 @@ def list_articles(
     limit: int = 20,
 ) -> dict:
     params: dict = {"page_size": limit}
-    if category:
+    if category is not None:
         params["category"] = category
-    if source:
+    if source is not None:
         params["source"] = source
     return _get("/api/v1/articles", params=params)
 

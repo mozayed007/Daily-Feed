@@ -15,8 +15,8 @@ def _err(msg: str):
 
 
 def _output(data, fmt: str):
-    """Print data as JSON (default) or pretty-printed JSON."""
-    if fmt == "text":
+    """Print data as compact JSON (default) or pretty-printed JSON."""
+    if fmt == "pretty":
         print(json.dumps(data, indent=2, default=str))
     else:
         print(json.dumps(data, default=str))
@@ -29,9 +29,9 @@ def main():
     )
     parser.add_argument(
         "--format",
-        choices=["json", "text"],
+        choices=["json", "pretty"],
         default="json",
-        help="Output format (default: json)",
+        help="Output format: json (compact) or pretty (indented, default: json)",
     )
 
     sub = parser.add_subparsers(dest="command")
