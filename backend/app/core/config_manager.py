@@ -423,6 +423,36 @@ class ConfigManager:
                     "enabled": True,
                 },
                 {
+                    "name": "Lilian Weng",
+                    "url": "https://lilianweng.github.io/index.xml",
+                    "category": "AI",
+                    "enabled": True,
+                },
+                {
+                    "name": "Sebastian Raschka",
+                    "url": "https://magazine.sebastianraschka.com/feed",
+                    "category": "AI",
+                    "enabled": True,
+                },
+                {
+                    "name": "Andrej Karpathy",
+                    "url": "https://medium.com/feed/@karpathy",
+                    "category": "AI",
+                    "enabled": True,
+                },
+                {
+                    "name": "Jay Alammar",
+                    "url": "https://jalammar.github.io/feed.xml",
+                    "category": "AI",
+                    "enabled": True,
+                },
+                {
+                    "name": "Chip Huyen",
+                    "url": "https://huyenchip.com/feed.xml",
+                    "category": "AI",
+                    "enabled": True,
+                },
+                {
                     "name": "Ars Technica",
                     "url": "https://feeds.arstechnica.com/arstechnica/index",
                     "category": "Technology",

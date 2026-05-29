@@ -82,6 +82,36 @@ async def seed_demo_data():
                 category="Technology",
                 enabled=True
             ),
+            SourceModel(
+                name="Lilian Weng",
+                url="https://lilianweng.github.io/index.xml",
+                category="AI",
+                enabled=True
+            ),
+            SourceModel(
+                name="Sebastian Raschka",
+                url="https://magazine.sebastianraschka.com/feed",
+                category="AI",
+                enabled=True
+            ),
+            SourceModel(
+                name="Andrej Karpathy",
+                url="https://medium.com/feed/@karpathy",
+                category="AI",
+                enabled=True
+            ),
+            SourceModel(
+                name="Jay Alammar",
+                url="https://jalammar.github.io/feed.xml",
+                category="AI",
+                enabled=True
+            ),
+            SourceModel(
+                name="Chip Huyen",
+                url="https://huyenchip.com/feed.xml",
+                category="AI",
+                enabled=True
+            ),
         ]
         
         for source in sources:
