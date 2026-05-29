@@ -5,13 +5,15 @@ companion/node_modules/
 
 # ── Python ─────────────────────────────────────────────────────
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 *.so
 .pytest_cache/
-backend/.pytest_cache/
+**/.pytest_cache/
 .mypy_cache/
+**/.mypy_cache/
 .ruff_cache/
 *.egg-info/
 dist/
@@ -20,7 +22,6 @@ build/
 
 # ── Rust ───────────────────────────────────────────────────────
 target/
-Cargo.lock
 *.rs.bk
 
 # ── Environment / Secrets ──────────────────────────────────────
@@ -57,10 +58,12 @@ Thumbs.db
 *.iml
 
 # ── Generated / Cache ─────────────────────────────────────────
+.opencode/
 .kilo/
 .kilo/plans/
 .cache/
 .parcel-cache/
+.turbo/
 *.tsbuildinfo
 
 # ── Build Outputs ────────────────────────────────────────────
@@ -75,6 +78,7 @@ companion/src-tauri/target/
 # ── Test / Coverage ─────────────────────────────────────────
 backend/.coverage
 coverage/
+htmlcov/
 test-results/
 playwright-report/
 *.lcov
