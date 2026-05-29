@@ -1,7 +1,6 @@
 """HTTP client for the Daily Feed backend API."""
 
 import os
-import sys
 
 import httpx
 

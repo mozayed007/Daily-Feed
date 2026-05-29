@@ -5,37 +5,16 @@ Wraps the FastAPI backend as atomic, composable tools for AI agents.
 Run: python -m app.mcp.server
 """
 
-import os
 from typing import Any
 
-import httpx
 from mcp.server.fastmcp import FastMCP
 
-BASE_URL = os.environ.get("DAILY_FEED_URL", "http://localhost:8000")
-API = f"{BASE_URL}/api/v1"
-TIMEOUT = httpx.Timeout(30.0)
-TOKEN = os.environ.get("DAILY_FEED_TOKEN")
+from app.mcp._http import api
 
 mcp = FastMCP(
     "Daily Feed",
     instructions="Personalized news aggregator. Browse, search, summarize, and analyze articles from curated RSS sources.",
 )
-
-
-async def _api(method: str, path: str, **kwargs) -> dict[str, Any]:
-    """Call the backend API. Returns JSON on success, error dict on failure."""
-    headers = kwargs.pop("headers", {})
-    if TOKEN:
-        headers["Authorization"] = f"Bearer {TOKEN}"
-    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        try:
-            resp = await client.request(method, f"{API}{path}", headers=headers, **kwargs)
-            resp.raise_for_status()
-            return resp.json()
-        except httpx.HTTPStatusError as e:
-            return {"error": True, "status": e.response.status_code, "detail": e.response.text}
-        except httpx.RequestError as e:
-            return {"error": True, "detail": f"Request failed: {e}"}
 
 
 def _compact_article(a: dict) -> dict:
@@ -53,19 +32,18 @@ def _compact_article(a: dict) -> dict:
 
 
 @mcp.tool()
-async def get_briefing(time: str = "morning") -> dict[str, Any]:
+async def get_briefing() -> dict[str, Any]:
     """Get a personalized news digest.
 
-    Args:
-        time: "morning" for a start-of-day briefing, "evening" for an end-of-day roundup.
+    Runs the full pipeline (fetch, process, digest) and returns the result.
 
     Returns:
         Digest content with articles, clusters, and highlights.
 
     Example:
-        get_briefing("morning")
+        get_briefing()
     """
-    result = await _api("POST", "/pipeline/digest", json={"time_of_day": time})
+    result = await api("POST", "/pipeline/full")
     if result.get("error"):
         return result
     return result.get("result", result)
@@ -100,7 +78,7 @@ async def list_articles(
     if processed is not None:
         params["processed"] = processed
 
-    data = await _api("GET", "/articles", params=params)
+    data = await api("GET", "/articles", params=params)
     if data.get("error"):
         return data
 
@@ -122,7 +100,7 @@ async def search_articles(query: str, limit: int = 10) -> dict[str, Any]:
     Example:
         search_articles("artificial intelligence regulation", limit=5)
     """
-    data = await _api("GET", "/articles/search", params={"q": query, "limit": min(limit, 100)})
+    data = await api("GET", "/articles/search", params={"q": query, "limit": min(limit, 100)})
     if data.get("error"):
         return data
 
@@ -143,7 +121,7 @@ async def get_article(article_id: int) -> dict[str, Any]:
     Example:
         get_article(42)
     """
-    return await _api("GET", f"/articles/{article_id}")
+    return await api("GET", f"/articles/{article_id}")
 
 
 @mcp.tool()
@@ -163,7 +141,7 @@ async def summarize_article(article_id: int, style: str = "concise") -> dict[str
     Example:
         summarize_article(42, style="bullet_points")
     """
-    result = await _api("POST", f"/articles/{article_id}/summarize")
+    result = await api("POST", f"/articles/{article_id}/summarize")
     if result.get("error"):
         return result
     return {
@@ -188,7 +166,7 @@ async def detect_trends() -> dict[str, Any]:
     Example:
         detect_trends()
     """
-    result = await _api("POST", "/pipeline/trends")
+    result = await api("POST", "/pipeline/trends")
     if result.get("error"):
         return result
     return result.get("result", result)
@@ -208,7 +186,7 @@ async def cluster_articles(article_ids: list[int]) -> dict[str, Any]:
     Example:
         cluster_articles([1, 5, 12, 18, 23])
     """
-    result = await _api("POST", "/articles/cluster", json={"article_ids": article_ids})
+    result = await api("POST", "/articles/cluster", json={"article_ids": article_ids})
     if result.get("error"):
         return result
     return result
@@ -228,7 +206,7 @@ async def synthesize_topic(topic: str, article_ids: list[int]) -> dict[str, Any]
     Example:
         synthesize_topic("OpenAI GPT-5 launch", [10, 15, 22, 31])
     """
-    result = await _api(
+    result = await api(
         "POST", "/articles/synthesize", json={"topic": topic, "article_ids": article_ids}
     )
     if result.get("error"):
@@ -249,7 +227,7 @@ async def explain_relevance(article_id: int) -> dict[str, Any]:
     Example:
         explain_relevance(42)
     """
-    return await _api("POST", f"/articles/{article_id}/reason")
+    return await api("POST", f"/articles/{article_id}/reason")
 
 
 @mcp.tool()
@@ -265,7 +243,7 @@ async def get_user_interests() -> dict[str, Any]:
     Example:
         get_user_interests()
     """
-    return await _api("GET", "/memory/interests")
+    return await api("GET", "/memory/interests")
 
 
 @mcp.tool()
@@ -277,7 +255,7 @@ async def get_sources() -> dict[str, Any]:
     Example:
         get_sources()
     """
-    data = await _api("GET", "/sources")
+    data = await api("GET", "/sources")
     if data.get("error"):
         return data
     return {"sources": data}
@@ -293,7 +271,7 @@ async def trigger_fetch() -> dict[str, Any]:
     Example:
         trigger_fetch()
     """
-    return await _api("POST", "/sources/fetch")
+    return await api("POST", "/sources/fetch")
 
 
 @mcp.tool()
@@ -306,7 +284,7 @@ async def get_stats() -> dict[str, Any]:
     Example:
         get_stats()
     """
-    return await _api("GET", "/stats")
+    return await api("GET", "/stats")
 
 
 @mcp.tool()
@@ -334,7 +312,7 @@ async def run_pipeline(task_type: str) -> dict[str, Any]:
     if task_type not in valid:
         return {"error": True, "detail": f"Invalid task_type '{task_type}'. Valid: {sorted(valid)}"}
 
-    result = await _api("POST", f"/pipeline/{task_type}")
+    result = await api("POST", f"/pipeline/{task_type}")
     if result.get("error"):
         return result
     return result

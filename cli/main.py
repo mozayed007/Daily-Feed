@@ -6,9 +6,6 @@ import sys
 
 import httpx
 
-from cli.commands.articles import cmd_articles, cmd_search, cmd_article
-from cli.commands.briefing import cmd_briefing
-from cli.commands.trends import cmd_trends
 from cli import api_client
 
 
@@ -18,12 +15,9 @@ def _err(msg: str):
 
 
 def _output(data, fmt: str):
-    """Print data as JSON (default) or human-readable text."""
+    """Print data as JSON (default) or pretty-printed JSON."""
     if fmt == "text":
-        if isinstance(data, (dict, list)):
-            print(json.dumps(data, indent=2, default=str))
-        else:
-            print(data)
+        print(json.dumps(data, indent=2, default=str))
     else:
         print(json.dumps(data, default=str))
 
@@ -43,12 +37,12 @@ def main():
     sub = parser.add_subparsers(dest="command")
 
     # briefing
-    p_briefing = sub.add_parser("briefing", help="Generate a digest briefing")
+    p_briefing = sub.add_parser("briefing", help="Run full pipeline digest")
     p_briefing.add_argument(
         "--time",
         choices=["morning", "evening"],
         default="morning",
-        help="Briefing time of day",
+        help="Briefing time of day (for display only, not used by backend)",
     )
 
     # articles
@@ -99,19 +93,21 @@ def main():
 
     try:
         if args.command == "briefing":
-            data = cmd_briefing(args.time)
+            data = api_client.run_pipeline("full")
             _output(data, fmt)
 
         elif args.command == "articles":
-            data = cmd_articles(args.category, args.source, args.limit)
+            data = api_client.list_articles(
+                category=args.category, source=args.source, limit=args.limit
+            )
             _output(data, fmt)
 
         elif args.command == "search":
-            data = cmd_search(args.query, args.limit)
+            data = api_client.search_articles(query=args.query, limit=args.limit)
             _output(data, fmt)
 
         elif args.command == "article":
-            data = cmd_article(args.id)
+            data = api_client.get_article(args.id)
             _output(data, fmt)
 
         elif args.command == "sources":
@@ -123,7 +119,7 @@ def main():
             _output(data, fmt)
 
         elif args.command == "trends":
-            data = cmd_trends()
+            data = api_client.run_pipeline("trends")
             _output(data, fmt)
 
         elif args.command == "stats":
