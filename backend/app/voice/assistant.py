@@ -38,7 +38,6 @@ from pydantic_ai import Agent, RunContext
 
 from app.ai.llm import create_agent
 from app.ai.orchestrator import get_orchestrator
-from app.config import get_settings
 from app.voice.search import get_web_search_tool
 from app.voice.stt import get_stt_engine
 from app.voice.tts import FRIDAY_VOICE, JARVIS_VOICE, get_tts_engine
@@ -182,29 +181,16 @@ async def tool_open_dashboard(ctx: RunContext, path: str = "/") -> str:
 
 def build_voice_agent(voice: str = "jarvis") -> Agent:
     """Create the pydantic-ai agent with all tools and capabilities registered."""
-    settings = get_settings()
-    capabilities: list = []
-    if settings.ENABLE_WEB_SEARCH:
-        from pydantic_ai.capabilities import WebSearch
-
-        capabilities.append(WebSearch())
-    if settings.ENABLE_URL_FETCH:
-        from pydantic_ai.capabilities import WebFetch
-
-        capabilities.append(WebFetch())
-
     tools = [
         tool_fetch_news,
         tool_get_trends,
+        tool_web_search,  # DuckDuckGo fallback — always available
         tool_remember_note,
         tool_get_stats,
         tool_start_scheduler,
         tool_stop_scheduler,
         tool_open_dashboard,
     ]
-    # Keep DuckDuckGo fallback for providers without native web search
-    if not settings.ENABLE_WEB_SEARCH:
-        tools.append(tool_web_search)
 
     agent = create_agent(
         system_prompt=SYSTEM_PROMPT,
@@ -213,7 +199,7 @@ def build_voice_agent(voice: str = "jarvis") -> Agent:
         temperature=0.6,
         max_tokens=800,
         tools=tools,
-        capabilities=capabilities or None,
+        search_enabled=True,  # attach WebSearch + WebFetch capabilities from settings
     )
     return agent
 

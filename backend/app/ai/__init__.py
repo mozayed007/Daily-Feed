@@ -3,12 +3,9 @@
 from app.ai.agents import (
     cluster_agent,
     critique_agent,
-    critique_agent_with_search,
     digest_reason_agent,
     summarize_agent,
-    summarize_agent_with_search,
     synthesize_agent,
-    synthesize_agent_with_search,
     trend_agent,
 )
 from app.ai.graphs import (
@@ -32,12 +29,9 @@ __all__ = [
     "create_agent",
     "get_model",
     "summarize_agent",
-    "summarize_agent_with_search",
     "critique_agent",
-    "critique_agent_with_search",
     "cluster_agent",
     "synthesize_agent",
-    "synthesize_agent_with_search",
     "digest_reason_agent",
     "trend_agent",
     "ArticleProcessingGraph",

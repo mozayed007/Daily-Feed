@@ -17,6 +17,7 @@ class LLMProvider(str, Enum):
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
     FIREWORKS = "fireworks"
+    OPENAI_COMPATIBLE = "openai-compatible"
 
 
 @dataclass
@@ -222,7 +223,7 @@ class ConfigManager:
             if config.llm.provider == LLMProvider.OLLAMA:
                 config.llm.provider = LLMProvider.GEMINI
 
-        if os.getenv("GEMINI_MODEL"):
+        if os.getenv("GEMINI_MODEL") and config.llm.provider == LLMProvider.GEMINI:
             config.llm.model = os.getenv("GEMINI_MODEL")
 
         if os.getenv("FIREWORKS_API_KEY"):
@@ -230,8 +231,20 @@ class ConfigManager:
             if config.llm.provider == LLMProvider.OLLAMA:
                 config.llm.provider = LLMProvider.FIREWORKS
 
-        if os.getenv("FIREWORKS_MODEL"):
+        if os.getenv("FIREWORKS_MODEL") and config.llm.provider == LLMProvider.FIREWORKS:
             config.llm.model = os.getenv("FIREWORKS_MODEL")
+
+        # Generic OpenAI-compatible (Xiaomi Mimo, Together, Groq, etc.)
+        if os.getenv("COMPAT_API_KEY"):
+            config.llm.api_key = os.getenv("COMPAT_API_KEY")
+            if config.llm.provider == LLMProvider.OLLAMA:
+                config.llm.provider = LLMProvider.OPENAI_COMPATIBLE
+
+        if os.getenv("COMPAT_MODEL") and config.llm.provider == LLMProvider.OPENAI_COMPATIBLE:
+            config.llm.model = os.getenv("COMPAT_MODEL")
+
+        if os.getenv("COMPAT_BASE_URL") and config.llm.provider == LLMProvider.OPENAI_COMPATIBLE:
+            config.llm.api_base = os.getenv("COMPAT_BASE_URL")
 
         # Database
         if os.getenv(f"{self.ENV_PREFIX}DATABASE_URL"):

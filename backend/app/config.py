@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     FIREWORKS_MODEL: str = "accounts/fireworks/routers/kimi-k2p6-turbo"
     FIREWORKS_BASE_URL: str = "https://api.fireworks.ai/inference/v1"
 
+    # Generic OpenAI-compatible provider (Xiaomi Mimo, Together, Groq, etc.)
+    COMPAT_API_KEY: Optional[str] = None
+    COMPAT_MODEL: str = "mimo-v2.5-pro"
+    COMPAT_BASE_URL: str = "https://api.xiaomi.com/v1"
+
     # Agent Capabilities (provider-adaptive tools)
     ENABLE_WEB_SEARCH: bool = True
     ENABLE_URL_FETCH: bool = True

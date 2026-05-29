@@ -148,7 +148,12 @@ async def seed_demo_data():
                 "BBC News - Technology": 0.7,
                 "Wired": 0.8,
                 "Ars Technica": 0.9,
-                "Reuters Technology": 0.6
+                "Reuters Technology": 0.6,
+                "Lilian Weng": 0.9,
+                "Sebastian Raschka": 0.9,
+                "Andrej Karpathy": 1.0,
+                "Jay Alammar": 0.8,
+                "Chip Huyen": 0.9,
             },
             summary_length="medium",
             daily_article_limit=10,
