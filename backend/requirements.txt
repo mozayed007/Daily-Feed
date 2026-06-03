@@ -25,7 +25,7 @@ aiohttp>=3.13.5
 requests>=2.34.2
 
 # AI/LLM - Unified via litellm through pydantic-ai
-pydantic-ai>=1.93.0
+pydantic-ai>=1.97.0
 pydantic-graph>=0.0.21
 pydantic-ai-litellm>=0.2.0
 litellm>=1.59.0
