@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Reusable async client with sane defaults
 _DEFAULT_TIMEOUT = httpx.Timeout(15.0, connect=10.0)
-_HEADERS = {
-    "User-Agent": "DailyFeed/1.0 (news aggregator; +https://github.com/user/Daily_Feed)"
-}
+_HEADERS = {"User-Agent": "DailyFeed/1.0 (news aggregator; +https://github.com/user/Daily_Feed)"}
 
 
 @dataclass(frozen=True)

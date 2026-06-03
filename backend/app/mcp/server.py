@@ -320,8 +320,8 @@ async def run_pipeline(task_type: str) -> dict[str, Any]:
 
 # ── Resources & Prompts ────────────────────────────────────────────────────
 
-from app.mcp.resources import register_resources
 from app.mcp.prompts import register_prompts
+from app.mcp.resources import register_resources
 
 register_resources(mcp)
 register_prompts(mcp)

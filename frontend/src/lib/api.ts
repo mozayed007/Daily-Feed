@@ -40,7 +40,7 @@ function normalizeApiErrorMessage(error: unknown): string {
       return detail;
     }
     if (Array.isArray(detail) && detail.length > 0) {
-      return detail.map((item: any) => item?.msg || String(item)).join(', ');
+      return detail.map((item: unknown) => (item as { msg?: string })?.msg || String(item)).join(', ');
     }
     if (error.code === 'ECONNABORTED') {
       return 'Request timed out. Please try again.';

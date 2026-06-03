@@ -126,7 +126,7 @@ export function Onboarding() {
       name: formData.name,
       interests: formData.interests,
       preferred_sources: formData.sources,
-      summary_length: formData.summaryLength as any,
+      summary_length: formData.summaryLength,
       delivery_time: formData.deliveryTime,
       daily_limit: formData.dailyLimit,
     });

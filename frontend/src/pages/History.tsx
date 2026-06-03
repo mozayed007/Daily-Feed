@@ -52,7 +52,7 @@ export function History() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'all' | 'saved')}
               className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap min-h-[44px] ${
                 activeTab === tab.id
                   ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'

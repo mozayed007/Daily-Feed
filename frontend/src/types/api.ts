@@ -202,13 +202,13 @@ export interface RecordInteractionRequest {
 // Pipeline
 export interface PipelineRequest {
   task_type: 'fetch' | 'process' | 'digest' | 'full' | 'memory_sync' | 'trends' | 'cluster' | 'synthesize';
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
 }
 
 export interface PipelineResponse {
   success: boolean;
   task_type: string;
-  result: any;
+  result: unknown;
 }
 
 // ============================================================================
@@ -398,7 +398,7 @@ export interface ValidationError {
 
 export interface WebSocketMessage {
   type: 'article_new' | 'digest_ready' | 'job_complete' | 'error';
-  payload: any;
+  payload: unknown;
   timestamp: string;
 }
 
@@ -411,7 +411,7 @@ export interface VoiceCommandResponse {
   thought?: string;
   response: string;
   action: string;
-  action_payload?: Record<string, any>;
+  action_payload?: Record<string, unknown>;
   error?: string;
 }
 
@@ -432,7 +432,7 @@ export interface VoiceWebSocketMessage {
   data?: string;
   text?: string;
   action?: string;
-  action_payload?: Record<string, any>;
+  action_payload?: Record<string, unknown>;
   format?: string;
   sample_rate?: number;
   message?: string;

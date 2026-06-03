@@ -188,7 +188,7 @@ export function Stats() {
         <div className="w-full sm:w-auto relative">
           <select
             value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value as any)}
+            onChange={(e) => setTimeRange(e.target.value as "7d" | "30d" | "90d")}
             className="w-full sm:w-40 appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 pr-10 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
           >
             <option value="7d">Last 7 days</option>

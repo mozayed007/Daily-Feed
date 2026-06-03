@@ -37,9 +37,10 @@ export function OAuthCallback() {
           setMessage('Authentication successful! Redirecting...');
           setTimeout(() => navigate('/'), 1500);
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
           setStatus('error');
-          setMessage(err?.response?.data?.detail || 'Authentication failed. Please try again.');
+          const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+          setMessage(detail || 'Authentication failed. Please try again.');
         },
       }
     );

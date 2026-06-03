@@ -230,11 +230,12 @@ function ChangePasswordSection() {
           setNewPassword('');
           setConfirmPassword('');
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+          const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
           events.emit('toast', {
             type: 'error',
             title: 'Update Failed',
-            message: error?.response?.data?.detail || 'Failed to change password. Please try again.',
+            message: detail || 'Failed to change password. Please try again.',
             duration: 5000,
           });
         },

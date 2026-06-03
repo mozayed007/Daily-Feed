@@ -52,8 +52,10 @@ export function ResetPassword() {
     try {
       await api.post('/auth/reset-password', { token, new_password: newPassword });
       setIsSuccess(true);
-    } catch (error: any) {
-      const message = error.response?.data?.detail || 'Failed to reset password. Please try again.';
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        'Failed to reset password. Please try again.';
       events.emit('toast', {
         type: 'error',
         title: 'Reset Failed',
