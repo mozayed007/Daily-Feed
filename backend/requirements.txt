@@ -60,7 +60,7 @@ pytest-cov>=7.1.0
 httpx>=0.25.0
 
 # Development
-black>=23.11.0
+black>=26.5.1
 isort>=8.0.1
 mypy>=1.7.0
 passlib[bcrypt]
