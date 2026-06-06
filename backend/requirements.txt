@@ -28,7 +28,7 @@ requests>=2.33.1
 pydantic-ai>=1.93.0
 pydantic-graph>=0.0.21
 pydantic-ai-litellm>=0.2.0
-litellm>=1.59.0
+litellm>=1.87.1
 ollama>=0.1.0
 
 # Utilities
