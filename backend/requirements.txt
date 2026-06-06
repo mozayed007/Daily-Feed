@@ -51,7 +51,7 @@ numpy>=2.2.6                # Audio array manipulation
 edge-tts>=7.0.0              # Fallback TTS (if Kokoro ONNX fails)
 
 # MCP Server (Agent Experience)
-mcp>=1.0.0
+mcp>=1.27.2
 
 # Testing
 pytest>=9.0.3
