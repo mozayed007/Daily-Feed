@@ -15,7 +15,7 @@ alembic>=1.18.4  # Database migrations
 
 # RSS & Content
 feedparser>=6.0.12
-beautifulsoup4>=4.12.2
+beautifulsoup4>=4.14.3
 lxml>=4.9.3
 trafilatura>=2.0.0  # URL-to-clean-text extraction for article pipeline
 
